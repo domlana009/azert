@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 
-import { Navigation } from "@/components/sections/Navigation";
-import { DailyReport } from "@/components/sections/DailyReport";
-import { ActivityReport } from "@/components/sections/ActivityReport";
-import { TruckTracking } from "@/components/sections/TruckTracking";
+import {
+  Navigation,
+  DailyReport,
+  ActivityReport,
+  TruckTracking,
+} from "@/components/sections";
 
 const userName = "JD";
 const currentDate = new Date().toLocaleDateString("fr-FR", {
@@ -62,5 +64,3 @@ export default function Home() {
     </div>
   );
 }
-
-
