@@ -9,6 +9,7 @@ export function Navigation({ activeTab, setActiveTab }: NavigationProps) {
     { id: "daily-report", label: "Rapport Journalier", icon: "fas fa-file-alt" },
     { id: "activity-report", label: "Activité TNB", icon: "fas fa-chart-line" },
     { id: "truck-tracking", label: "Pointage Camions", icon: "fas fa-truck" },
+    { id: "another-page", label: "Another Page", icon: "fas fa-file" },
   ];
 
   return (
@@ -28,3 +29,4 @@ export function Navigation({ activeTab, setActiveTab }: NavigationProps) {
     </div>
   );
 }
+
