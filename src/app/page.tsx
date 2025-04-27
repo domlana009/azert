@@ -12,6 +12,7 @@ import {
   ActivityReport,
   TruckTracking,
 } from "@/components/sections";
+import Link from "next/link";
 
 const userName = "JD";
 const currentDate = new Date().toLocaleDateString("fr-FR", {
@@ -59,8 +60,10 @@ export default function Home() {
             <TruckTracking currentDate={currentDate} />
           )}
         </div>
+        <Link href="/another-page">Another Page</Link>
         <Toaster />
       </div>
     </div>
   );
 }
+
