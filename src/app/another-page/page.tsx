@@ -30,10 +30,17 @@ export default function AnotherPage() {
                 <TableBody>
                   <TableRow>
                     <TableCell>UNITE</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                  </TableRow>
+                  <TableRow>
                     <TableCell>INDEX COMPTEUR</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>1er D</TableCell>
@@ -43,9 +50,15 @@ export default function AnotherPage() {
                     <TableCell></TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>6H30 F</TableCell>
-                    <TableCell>14H30 F</TableCell>
-                    <TableCell>22H30 F</TableCell>
+                    <TableCell>
+                      6H30 F <Input type="text" />
+                    </TableCell>
+                    <TableCell>
+                      14H30 F <Input type="text" />
+                    </TableCell>
+                    <TableCell>
+                      22H30 F <Input type="text" />
+                    </TableCell>
                     <TableCell></TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -68,65 +81,65 @@ export default function AnotherPage() {
                   </TableRow>
                   <TableRow>
                     <TableCell>121 ARRET CARREAU INDUSTRIEL</TableCell>
-                    <TableCell>121</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>
                       122 COUPURE GENERALE DU COURANT 7 15 23
                     </TableCell>
-                    <TableCell>122</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>123 GREVE</TableCell>
-                    <TableCell>123</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>124 INTEMPERIES</TableCell>
-                    <TableCell>124</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>125 STOCKS PLEINS</TableCell>
-                    <TableCell>125</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>126 J. FRERES OU HEBDOMADAIRES 8 16 24</TableCell>
-                    <TableCell>126</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>128 ARRET PAR LA CENTRALE (ENERGIE)</TableCell>
-                    <TableCell>128</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>230 CONTROLE</TableCell>
-                    <TableCell>230</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>231 DEFAUT ELEC. (C. CRAME, RESEAU)</TableCell>
-                    <TableCell>231</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>232 PANNE MECANIQUE 1</TableCell>
-                    <TableCell>232</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>233 PANNE ELECTRIQUE</TableCell>
-                    <TableCell>233</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>234 INTERVENTION ATELIER PNEUMATIQUE</TableCell>
-                    <TableCell>234</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>235 ENTRETIEN SYSTEMATIQUE</TableCell>
-                    <TableCell>235</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>236 APPOINT (HUILE, GAZOL, EAU) 10 18 2</TableCell>
-                    <TableCell>236</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>237 GRAISSAGE</TableCell>
-                    <TableCell>237</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>MATERIEL</TableCell>
@@ -134,31 +147,31 @@ export default function AnotherPage() {
                   </TableRow>
                   <TableRow>
                     <TableCell>238 ARRET ELEC. INSTALLATION FIXES</TableCell>
-                    <TableCell>238</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>239 MANQUE CAMIONS</TableCell>
-                    <TableCell>239</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>240 MANQUE BULL 11 19 3</TableCell>
-                    <TableCell>240</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>241 MANQUE MECANICIEN</TableCell>
-                    <TableCell>241</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>242 MANQUE OUTILS DE TRAVAIL</TableCell>
-                    <TableCell>242</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>243 MACHINE A L'ARRET</TableCell>
-                    <TableCell>243</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>244 PANNE ENGIN DEVANT MACHINE 12 20 4</TableCell>
-                    <TableCell>244</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>EXPLOITATION</TableCell>
@@ -166,55 +179,55 @@ export default function AnotherPage() {
                   </TableRow>
                   <TableRow>
                     <TableCell>442 RELEVE</TableCell>
-                    <TableCell>442</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>443 EXECUTION PLATE FORME</TableCell>
-                    <TableCell>443</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>444 DEPLACEMENT</TableCell>
-                    <TableCell>444</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>445 TIR ET SAUTAGE 13 21 5</TableCell>
-                    <TableCell>445</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>446 MOUV. DE CABLE</TableCell>
-                    <TableCell>446</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>448 ARRET DECIDE</TableCell>
-                    <TableCell>448</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>449 MANQUE CONDUCTEUR</TableCell>
-                    <TableCell>449</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>450 BRIQUET</TableCell>
-                    <TableCell>450</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>451 PERTES (INTEMPERIES EXCLUES) 14 22 6</TableCell>
-                    <TableCell>451</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>452 ARRETS MECA. INSTALLATIONS FIXES</TableCell>
-                    <TableCell>452</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>453 TELESCOPAGE 15 23 7</TableCell>
-                    <TableCell>453</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>452 EXCAVATION PURE</TableCell>
-                    <TableCell>452</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell>453 TERRASSEMENT PUR</TableCell>
-                    <TableCell>453</TableCell>
+                    <TableCell><Input type="text" /></TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -227,25 +240,39 @@ export default function AnotherPage() {
               <Table>
                 <TableBody>
                   <TableRow>
-                    <TableCell>510 HEURES COMPTEUR</TableCell>
+                    <TableCell>
+                      510 HEURES COMPTEUR <Input type="text" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>610 METRAGE FORE</TableCell>
+                    <TableCell>
+                      610 METRAGE FORE <Input type="text" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>620 NOMBRE DE TROUS FORES</TableCell>
+                    <TableCell>
+                      620 NOMBRE DE TROUS FORES <Input type="text" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>630 NOMBRE DE VOYAGES</TableCell>
+                    <TableCell>
+                      630 NOMBRE DE VOYAGES <Input type="text" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>640 N° DECAPAGES</TableCell>
+                    <TableCell>
+                      640 N° DECAPAGES <Input type="text" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>650 TONNAGE</TableCell>
+                    <TableCell>
+                      650 TONNAGE <Input type="text" />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell>660 NOMBRE T.K.J</TableCell>
+                    <TableCell>
+                      660 NOMBRE T.K.J <Input type="text" />
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

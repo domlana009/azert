@@ -60,7 +60,7 @@ export default function Home() {
             <TruckTracking currentDate={currentDate} />
           )}
         </div>
-        <Link href="/another-page">Another Page</Link>
+        
         <Toaster />
       </div>
     </div>
