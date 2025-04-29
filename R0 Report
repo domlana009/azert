@@ -1,0 +1,101 @@
+RAPPORT R0
+
+ENTREE | SECTEUR | RAPPORT (R°) | MACHINE / ENGINS | S.A
+------- | -------- | -------- | -------- | --------
+UNITE | INDEX COMPTEUR |  |  | 
+1er D | 2eme D | 3eme D |  | 
+6H30 F | 14H30 F | 22H30 F |  | 
+
+VENTILATION |  |  |  | TOTAUX
+------- | -------- | -------- | -------- | --------
+EXTERIEURS |  |  |  | 
+121 ARRET CARREAU INDUSTRIEL |  |  |  | 121
+122 COUPURE GENERALE DU COURANT | 7 |  | 15 | 23 | 122
+123 GREVE |  |  |  | 123
+124 INTEMPERIES |  |  |  | 124
+125 STOCKS PLEINS |  |  |  | 125
+126 J. FRERES OU HEBDOMADAIRES | 8 |  | 16 | 24 | 126
+128 ARRET PAR LA CENTRALE (ENERGIE) |  |  |  | 128
+230 CONTROLE |  |  |  | 230
+231 DEFAUT ELEC. (C. CRAME, RESEAU) |  |  |  | 231
+232 PANNE MECANIQUE |  |  | 1 | | 232
+233 PANNE ELECTRIQUE |  |  |  | 233
+234 INTERVENTION ATELIER PNEUMATIQUE |  |  |  | 234
+235 ENTRETIEN SYSTEMATIQUE |  |  |  | 235
+236 APPOINT (HUILE, GAZOL, EAU) | 10 |  | 18 | 2 | 236
+237 GRAISSAGE |  |  |  | 237
+MATERIEL |  |  |  | 
+238 ARRET ELEC. INSTALLATION FIXES |  |  |  | 238
+239 MANQUE CAMIONS |  |  |  | 239
+240 MANQUE BULL | 11 |  | 19 | 3 | 240
+241 MANQUE MECANICIEN |  |  |  | 241
+242 MANQUE OUTILS DE TRAVAIL |  |  |  | 242
+243 MACHINE A L'ARRET |  |  |  | 243
+244 PANNE ENGIN DEVANT MACHINE | 12 |  | 20 | 4 | 244
+EXPLOITATION |  |  |  | 
+442 RELEVE |  |  |  | 442
+443 EXECUTION PLATE FORME |  |  |  | 443
+444 DEPLACEMENT |  |  |  | 444
+445 TIR ET SAUTAGE | 13 |  | 21 | 5 | 445
+446 MOUV. DE CABLE |  |  |  | 446
+448 ARRET DECIDE |  |  |  | 448
+449 MANQUE CONDUCTEUR |  |  |  | 449
+450 BRIQUET |  |  |  | 450
+451 PERTES (INTEMPERIES EXCLUES) | 14 |  | 22 | 6 | 451
+452 ARRETS MECA. INSTALLATIONS FIXES |  |  |  | 452
+453 TELESCOPAGE | 15 |  | 23 | 7 | 453
+452 EXCAVATION PURE |  |  |  | 452
+453 TERRASSEMENT PUR |  |  |  | 453
+TOTAL |  |  |  | 
+510 HEURES COMPTEUR |  |  |  | 
+610 METRAGE FORE |  |  |  | 
+620 NOMBRE DE TROUS FORES |  |  |  | 
+630 NOMBRE DE VOYAGES |  |  |  | 
+640 N° DECAPAGES |  |  |  | 
+650 TONNAGE |  |  |  | 
+660 NOMBRE T.K.J |  |  |  | 
+
+CONDUCTEUR | GRAISSEUR | MATRICULES
+------- | -------- | --------
+
+REPARTITION DU TEMPS DE TRAVAIL PUR
+1er Poste
+CHANTIER | TEMPS | IMPUTATION
+------- | -------- | --------
+
+2eme Poste
+CHANTIER | TEMPS | IMPUTATION
+------- | -------- | --------
+
+3eme Poste
+CHANTIER | TEMPS | IMPUTATION
+------- | -------- | --------
+
+SUIVI CONSOMMATION
+TRICONE
+POSÉ | DÉPOSÉ | CAUSE DE DÉPOSÉ :
+------- | -------- | --------
+T1 CORPS USE |  | 
+T2 MOLLETTES USEES |  | 
+T3 MOLLETTES PERDUES |  | 
+T4 ROULEMENT CASSE |  | 
+T5 CORPS FISSURE |  | 
+T6 ROULEMENT COINCE |  | 
+T7 FILAGE ABIME |  | 
+T8 TRICONE PERDU |  | 
+
+MARQUE |  | 
+------- | --------
+N° DE SERIE |  | 
+TYPE |  | 
+DIAMETRE |  | 
+
+INDEX COMPTEUR : _________
+
+GASOIL
+
+LIEU D'APPOINT : _________
+
+INDEX COMPTEUR : _________
+
+QUANTITE DELIVREE : _________

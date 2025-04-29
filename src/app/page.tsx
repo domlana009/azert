@@ -11,6 +11,7 @@ import {
   DailyReport,
   ActivityReport,
   TruckTracking,
+  R0Report,
 } from "@/components/sections";
 import Link from "next/link";
 
@@ -58,6 +59,9 @@ export default function Home() {
           )}
           {activeTab === "truck-tracking" && (
             <TruckTracking currentDate={currentDate} />
+          )}
+          {activeTab === "Rapport R0" && (
+            <R0Report currentDate={currentDate} />
           )}
         </div>
         
