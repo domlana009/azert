@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 
 interface TruckTrackingProps {
-  currentDate: string;
+  selectedDate: Date; // Changed prop name and kept type as Date
 }
 
 type Poste = "1er" | "2ème" | "3ème";
@@ -32,7 +32,7 @@ interface TruckData {
     tSud: string;
     tNord: string;
     stock: string;
-    total: string;
+    total: string; // Should this be calculated?
     hour: string;
     location: string;
 }
@@ -50,7 +50,7 @@ interface GeneralInfo {
 }
 
 
-export function TruckTracking({ currentDate }: TruckTrackingProps) {
+export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated prop name
   const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
   const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
     direction: "phosboucraa",
@@ -78,6 +78,13 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
       location: "",
     },
   ]);
+
+    // Format date string once using the selectedDate prop
+    const formattedDate = selectedDate.toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
 
     const handleGeneralInfoChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, // Allow Textarea
@@ -156,7 +163,8 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
         <CardTitle className="text-xl font-bold">
           POINTAGE DES CAMIONS
         </CardTitle>
-        <span className="text-sm text-muted-foreground">{currentDate}</span>
+        {/* Display the formatted date from the prop */}
+        <span className="text-sm text-muted-foreground">{formattedDate}</span>
       </CardHeader>
 
       <CardContent className="p-0 space-y-6"> {/* Added space-y-6 */}
@@ -443,3 +451,4 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
     </Card>
   );
 }
+```

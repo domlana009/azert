@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Trash, Plus, AlertCircle } from "lucide-react"; // Added Plus icon and AlertCircle
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Removed RadioGroup import
 import {
   Select,
   SelectContent,
@@ -95,7 +94,7 @@ function calculateTotalCounterMinutes(counters: Array<{ start: string; end: stri
 
 
 interface ActivityReportProps {
-  currentDate: string;
+  selectedDate: Date; // Changed prop name and kept type as Date
   previousDayThirdShiftEnd?: string | null; // Add prop for previous day's 3rd shift end counter
 }
 
@@ -154,7 +153,7 @@ interface StockEntry {
 
 const MAX_HOURS_PER_POSTE = 8; // Max hours for a standard shift
 
-export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }: ActivityReportProps) {
+export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }: ActivityReportProps) { // Updated prop name
 
 
   // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
@@ -196,6 +195,14 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
   // State for counter validation errors (including sequential checks) - for ActivityReport counters
    const [vibratorCounterErrors, setVibratorCounterErrors] = useState<Record<string, string>>({}); // Use record for ID-based errors
    const [liaisonCounterErrors, setLiaisonCounterErrors] = useState<Record<string, string>>({});
+
+
+    // Format date string once using the selectedDate prop
+    const formattedDate = selectedDate.toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
 
 
   // Calculate total downtime and operating time whenever stops change
@@ -240,13 +247,14 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
         const currentIndex = counters.findIndex(c => c.id === counterId);
         if (currentIndex === -1 || !currentPoste) return undefined; // Cannot validate sequence without index or poste
 
-        const posteIndex = POSTE_ORDER.indexOf(currentPoste); // 0 for 3eme, 1 for 1er, 2 for 2eme
+        // Find the correct index for the current poste in POSTE_ORDER ('3ème', '1er', '2ème')
+        const posteIndexInOrder = POSTE_ORDER.indexOf(currentPoste); // 0 for 3eme, 1 for 1er, 2 for 2eme
 
         // Find the counter for the previous logical poste (handling wrap-around for 1er)
         let previousCounter: Counter | LiaisonCounter | undefined = undefined;
         let expectedPreviousFinStr: string | undefined | null = undefined; // Can be null if prev day data is null
 
-        if (posteIndex === 1) { // Current is 1er Poste
+        if (posteIndexInOrder === 1) { // Current is 1er Poste (index 1 in POSTE_ORDER)
             // Need previous day's 3rd shift end (passed as prop for vibrators)
             if (type === 'vibrator') {
                 expectedPreviousFinStr = previousDayData; // Use prop
@@ -262,15 +270,15 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                  expectedPreviousFinStr = previousCounter?.end;
             }
 
-        } else if (posteIndex > 1) { // Current is 2eme or 3eme Poste
-             const previousPoste = POSTE_ORDER[posteIndex - 1];
-             // Find a counter with the previous poste in the *same list* (vibrator or liaison)
-             previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === previousPoste);
-             expectedPreviousFinStr = previousCounter?.end;
-        } else if (posteIndex === 0) { // Current is 3eme Poste - No sequential check needed within the day
-             expectedPreviousFinStr = null; // Explicitly skip check
+        } else if (posteIndexInOrder > 0) { // Current is 2eme (index 2) or 3eme (index 0) Poste
+            // Determine the previous poste based on POSTE_ORDER
+            const previousPosteIndex = (posteIndexInOrder === 0) ? 2 : posteIndexInOrder - 1; // If current is 3eme (idx 0), prev is 2eme (idx 2). Else, just subtract 1.
+            const previousPoste = POSTE_ORDER[previousPosteIndex];
+            // Find a counter with the previous poste in the *same list* (vibrator or liaison)
+            previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === previousPoste);
+            expectedPreviousFinStr = previousCounter?.end;
         }
-
+         // else: Current is 3eme Poste (index 0) - No check needed against 2eme of previous day in this logic
 
         // Perform the check if an expected previous 'fin' value exists
         if (expectedPreviousFinStr !== undefined && expectedPreviousFinStr !== null && currentStartStr !== '') {
@@ -281,12 +289,11 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                  // For now, let's skip the sequential check if the reference is invalid
                  // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid.`);
             } else if (startVal !== null && startVal !== expectedPreviousFin) {
-                 const prevPosteName = posteIndex === 1 ? "3ème (veille)" : POSTE_ORDER[posteIndex - 1];
+                 const prevPosteName = posteIndexInOrder === 1 ? "3ème (veille)" : POSTE_ORDER[(posteIndexInOrder === 0) ? 2 : posteIndexInOrder - 1];
                  return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFin}) du ${prevPosteName} Poste.`;
              }
         } else if (expectedPreviousFinStr === null) {
              // Previous data explicitly not available (e.g., first day or no 3rd shift prev day)
-             // Or current is 3rd poste, no intra-day prev check.
              // No sequential validation possible/needed for this boundary.
          }
          // else: No previous counter found, or previous 'fin' is empty, or current 'start' is empty - skip sequence check.
@@ -369,7 +376,7 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
    // Calculate hasStockErrors directly based on stockEntries state
     useEffect(() => {
       const activeEntryNeedsPoste = stockEntries.some(entry =>
-          (entry.park || entry.type || entry.quantity) && !entry.poste
+          (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste // Consider startTime as well
       );
       setHasStockErrors(activeEntryNeedsPoste);
     }, [stockEntries]);
@@ -490,9 +497,12 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
               updatedEntry.startTime = ''; // Reset start time if park changes
          } else if (field === 'type') {
             updatedEntry.quantity = ''; // Reset quantity when type changes
+             updatedEntry.startTime = ''; // Reset start time if type changes
          } else if (field === 'startTime') {
               // Maybe reset other fields if start time is the primary identifier?
-              // Depending on logic, might need to ensure park/type are cleared if startTime is entered first
+              updatedEntry.park = '';
+              updatedEntry.type = '';
+              updatedEntry.quantity = '';
          }
 
          return updatedEntry;
@@ -523,7 +533,7 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
             return;
          }
          // Add similar logic for stock errors if needed
-         const firstStockErrorEntry = stockEntries.find(entry => (entry.park || entry.type || entry.quantity) && !entry.poste);
+         const firstStockErrorEntry = stockEntries.find(entry => (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste);
          if (firstStockErrorEntry) {
              // Focus the poste select for the first erroneous stock entry
              document.getElementById(`stock-poste-trigger-${firstStockErrorEntry.id}`)?.focus();
@@ -536,12 +546,11 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
 
     // If validation passes, proceed with submission logic
     console.log("Submitting Activity Report:", {
-        // selectedPoste, // Removed selectedPoste
         stops,
         vibratorCounters, // Submit validated counters
         liaisonCounters, // Submit validated counters
         stockEntries, // Submit validated stock entries
-        stockStartTime,
+        //stockStartTime, // Removed stockStartTime, handled within stockEntries now
         totalDowntime,
         operatingTime,
         totalVibratorMinutes, // Submit calculated totals
@@ -558,16 +567,13 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
         <CardTitle className="text-xl font-bold">
           RAPPORT D'ACTIVITÉ TNR
         </CardTitle>
-        <span className="text-sm text-muted-foreground">{currentDate}</span>
+        {/* Display the formatted date from the prop */}
+        <span className="text-sm text-muted-foreground">{formattedDate}</span>
       </CardHeader>
 
       {/* Wrap content in a form */}
        <form onSubmit={handleSubmit}>
             <CardContent className="p-0 space-y-6"> {/* Added space-y-6 */}
-
-                {/* Removed Poste Selection Section */}
-                {/* <div className="space-y-2"> ... </div> */}
-
 
                 {/* Arrêts Section */}
                 <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
@@ -910,34 +916,21 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                         </Alert>
                     )}
 
-
-                    {/* HEURE DEBUT STOCK Input */}
-                    <div className="mb-4">
-                        <Label htmlFor="stock-start-time" className="font-medium text-foreground">{STOCK_TIME_LABEL}</Label>
-                        <Input
-                            id="stock-start-time"
-                            type="time"
-                            className="w-full h-9 mt-1"
-                            value={stockStartTime}
-                            onChange={(e) => setStockStartTime(e.target.value)}
-                        />
-                    </div>
-
                     <div className="overflow-x-auto">
                         <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">Poste</TableHead>{/* Added Poste Head */}
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">PARK</TableHead>
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[250px]">Type Produit</TableHead>
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Quantité</TableHead>
+                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[250px]">Type Produit / Info</TableHead>{/* Merged Type/Time */}
+                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Quantité / Heure</TableHead>{/* Merged Quantity/Time */}
                             <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {stockEntries.map((entry) => {
                                 // Calculate error dynamically for each entry
-                                const entryError = (entry.park || entry.type || entry.quantity) && !entry.poste ? "Veuillez sélectionner un poste." : undefined;
+                                const entryError = (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste ? "Veuillez sélectionner un poste." : undefined;
                                 return (
                                     <TableRow key={entry.id} className="hover:bg-muted/50">
                                         {/* Poste Selection Cell */}
@@ -975,34 +968,59 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                                             ))}
                                         </div>
                                         </TableCell>
-                                        {/* Type Checkboxes */}
+                                        {/* Type / Start Time Checkboxes */}
                                         <TableCell className="p-2 align-top">
-                                        <div className="space-y-2">
-                                            {STOCK_TYPES.map(type => (
-                                            <div key={type} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                id={`${entry.id}-${type}`}
-                                                checked={entry.type === type}
-                                                disabled={!entry.poste || !entry.park} // Disable if no poste or park selected
-                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
-                                                />
-                                                <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                                            <div className="space-y-2">
+                                                {/* Product Types */}
+                                                {STOCK_TYPES.map(type => (
+                                                <div key={type} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                    id={`${entry.id}-${type}`}
+                                                    checked={entry.type === type}
+                                                    disabled={!entry.poste || !entry.park} // Disable if no poste or park selected
+                                                    onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
+                                                    />
+                                                    <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                                                </div>
+                                                ))}
+                                                {/* HEURE DEBUT STOCK */}
+                                                 <div key={STOCK_TIME_LABEL} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`${entry.id}-startTime`}
+                                                        // Check if startTime has a value to determine checked state
+                                                        checked={!!entry.startTime}
+                                                        disabled={!entry.poste || !!entry.park} // Disable if no poste or if park is selected
+                                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'startTime', checked ? (entry.startTime || '00:00') : '', undefined)} // Set to '00:00' if checked, clear otherwise
+                                                    />
+                                                    <Label htmlFor={`${entry.id}-startTime`} className={`font-normal text-sm ${!entry.poste || !!entry.park ? 'text-muted-foreground' : ''}`}>{STOCK_TIME_LABEL}</Label>
+                                                </div>
                                             </div>
-                                            ))}
-                                        </div>
                                         </TableCell>
-                                        {/* Quantity Input */}
+                                        {/* Quantity / Time Input */}
                                         <TableCell className="p-2 align-top">
-                                        <Input
-                                            type="number"
-                                            step="0.01" // Allow decimals
-                                            min="0"
-                                            className="w-full h-8 text-sm mt-1" // Align with checkboxes
-                                            placeholder="Quantité"
-                                            value={entry.quantity}
-                                            disabled={!entry.poste || !entry.type} // Disable if no poste or type selected
-                                            onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
-                                        />
+                                            {/* Show Quantity input only if a type is selected */}
+                                            {entry.type && (
+                                                <Input
+                                                    type="number"
+                                                    step="0.01" // Allow decimals
+                                                    min="0"
+                                                    className="w-full h-8 text-sm mt-1" // Align with checkboxes
+                                                    placeholder="Quantité"
+                                                    value={entry.quantity}
+                                                    disabled={!entry.poste || !entry.type} // Disable if no poste or type selected
+                                                    onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
+                                                />
+                                            )}
+                                            {/* Show Time input only if startTime checkbox is checked */}
+                                            {!!entry.startTime && (
+                                                 <Input
+                                                    type="time"
+                                                    className="w-full h-8 text-sm mt-1" // Align with checkboxes
+                                                    value={entry.startTime}
+                                                    disabled={!entry.poste || !!entry.park} // Disable if no poste or park selected
+                                                    onChange={(e) => updateStockEntry(entry.id, "startTime", e.target.value)}
+                                                />
+                                            )}
                                         </TableCell>
                                         {/* Delete Button */}
                                         <TableCell className="p-2 text-right align-top">
@@ -1045,5 +1063,4 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
     </Card>
   );
 }
-
-    
+```

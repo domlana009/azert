@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// Removed RadioGroup imports as they are no longer used
-// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -18,7 +16,7 @@ import {
 } from "@/components/ui/table";
 
 interface DailyReportProps {
-  currentDate: Date; // Use Date object
+  selectedDate: Date; // Changed prop name and kept type as Date
 }
 
 interface ModuleStop {
@@ -26,12 +24,6 @@ interface ModuleStop {
   duration: string;
   nature: string;
 }
-
-// Removed Poste type and constants as they are no longer used
-// type Poste = "1er" | "2ème" | "3ème";
-// const POSTE_TIMES: Record<Poste, string> = { ... };
-// const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
-
 
 // Helper function to parse duration strings into minutes
 function parseDurationToMinutes(duration: string): number {
@@ -81,11 +73,9 @@ function formatMinutesToHoursMinutes(totalMinutes: number): string {
 }
 
 
-export function DailyReport({ currentDate }: DailyReportProps) {
+export function DailyReport({ selectedDate }: DailyReportProps) { // Updated prop name
   const TOTAL_PERIOD_MINUTES = 24 * 60; // 24-hour period
 
-  // Removed selectedPoste state
-  // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er");
 
   const [module1Stops, setModule1Stops] = useState<ModuleStop[]>([
     {
@@ -104,8 +94,8 @@ export function DailyReport({ currentDate }: DailyReportProps) {
   const [module1OperatingTime, setModule1OperatingTime] = useState(TOTAL_PERIOD_MINUTES);
   const [module2OperatingTime, setModule2OperatingTime] = useState(TOTAL_PERIOD_MINUTES);
 
-   // Format date string once
-   const formattedDate = currentDate.toLocaleDateString("fr-FR", {
+   // Format date string once using the selectedDate prop
+   const formattedDate = selectedDate.toLocaleDateString("fr-FR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -172,17 +162,11 @@ export function DailyReport({ currentDate }: DailyReportProps) {
         <CardTitle className="text-xl font-bold">
           RAPPORT JOURNALIER (Activité TSUD)
         </CardTitle>
+        {/* Display the formatted date from the prop */}
         <span className="text-sm text-muted-foreground">{formattedDate}</span>
       </CardHeader>
 
       <CardContent className="p-0 space-y-6">
-        {/* Removed Poste Selection Section */}
-        {/* <div className="grid grid-cols-1 gap-6">
-          <div className="space-y-2">
-            <Label className="text-foreground">Poste</Label>
-            <RadioGroup ... > ... </RadioGroup>
-          </div>
-        </div> */}
 
         {/* Module 1 Section */}
         <div className="space-y-4 p-4 border rounded-lg bg-card">
@@ -360,3 +344,4 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     </Card>
   );
 }
+```

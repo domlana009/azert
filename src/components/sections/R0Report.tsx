@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 
 
 interface R0ReportProps {
-  currentDate: string;
+  selectedDate: Date; // Changed prop name and kept type as Date
    // Prop for previous day's 3rd shift end counter
    previousDayThirdShiftEnd?: string | null; // Use string | null to represent potential absence
 }
@@ -227,7 +227,7 @@ function formatHoursToHoursMinutes(totalHours: number): string {
 
 
 // Added type prop
-export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0ReportProps) {
+export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0ReportProps) { // Updated prop name
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
    // State to hold calculated gross hours per poste and total
    const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
@@ -273,6 +273,14 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
     machineType: "",
     machineDiametre: "",
   });
+
+    // Format date string once using the selectedDate prop
+    const formattedDate = selectedDate.toLocaleDateString("fr-FR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
+
 
   const handleInputChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, // Allow Textarea
@@ -555,7 +563,8 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
         <CardTitle className="text-xl font-bold">
           Rapport Journalier Détaillé (R0)
         </CardTitle>
-        <span className="text-sm text-muted-foreground">{currentDate}</span>
+        {/* Display the formatted date from the prop */}
+        <span className="text-sm text-muted-foreground">{formattedDate}</span>
       </CardHeader>
 
       {/* Use form tag and onSubmit handler */}
@@ -1033,3 +1042,4 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
     </Card>
   );
 }
+```
