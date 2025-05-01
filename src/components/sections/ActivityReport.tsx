@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
@@ -475,12 +476,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
               </div>
-              <div className="mt-2">
-                <Label className="block text-muted-foreground text-xs mb-1">
-                  Poste
-                </Label>
-                <Input type="text" className="h-8 text-sm" defaultValue="3+1+2" />
-              </div>
+              {/* Removed Poste input div */}
             </div>
           </div>
         </div>
