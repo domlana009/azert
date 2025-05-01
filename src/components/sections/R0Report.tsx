@@ -52,6 +52,14 @@ interface IndexCompteurPoste {
     fin: string;
 }
 
+// Updated ventilation item structure to include 'note'
+interface VentilationItem {
+  code: number;
+  label: string;
+  duree: string;
+  note: string; // Added note field
+}
+
 interface FormData {
   entree: string;
   secteur: string;
@@ -61,7 +69,7 @@ interface FormData {
   unite: string;
   indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste, ORDER MUST MATCH POSTE_ORDER
   shifts: string[]; // Corresponds to postes 1er, 2eme, 3eme D/F times
-  ventilation: { code: number; label: string; duree: string }[]; // Updated ventilation structure
+  ventilation: VentilationItem[]; // Use updated VentilationItem type
   exploitation: Record<string, string>; // Use a record for exploitation data
   // 'bulls' now used for displaying calculated gross hours per poste
   bulls: string[]; // Index 0: 1er, Index 1: 2eme, Index 2: 3eme
@@ -89,14 +97,14 @@ interface FormData {
 }
 
 // Sample data structure based on user input (assuming this structure)
- const ventilationData = [
+ const ventilationBaseData = [
     { code: 121, label: "ARRET CARREAU INDUSTRIEL" },
     { code: 122, label: "COUPURE GENERALE DU COURANT" },
     { code: 123, label: "GREVE" },
     { code: 124, label: "INTEMPERIES" },
     { code: 125, label: "STOCKS PLEINS" },
     { code: 126, label: "J. FERIES OU HEBDOMADAIRES" }, // Corrected FÊRIES to FERIES
-    { code: 127, label: "ARRET PAR LA CENTRALE (ENERGIE)" }, // Corrected (E.M.E.) based on latest prompt
+    { code: 127, label: "ARRET PAR LA CENTRALE (ENERGIE)" }, // Corrected (E.M.E.) based on latest prompt - Assuming 127 instead of 128
     { code: 230, label: "CONTROLE" },
     { code: 231, label: "DEFAUT ELEC. (C. CRAME, RESEAU)" }, // Corrected C.RAME & RESAU
     { code: 232, label: "PANNE MECANIQUE" },
@@ -112,21 +120,29 @@ interface FormData {
     { code: 242, label: "MANQUE OUTILS DE TRAVAIL" },
     { code: 243, label: "MACHINE A L'ARRET" },
     { code: 244, label: "PANNE ENGIN DEVANT MACHINE" },
-    { code: 441, label: "RELEVE" }, // Corrected code based on user image -> Should be 441? Image shows 441, text has 442
-    { code: 442, label: "EXECUTION PLATE FORME" }, // Text has 443
-    { code: 443, label: "DEPLACEMENT" }, // Text has 444, image has 443
-    { code: 444, label: "TIR ET SAUTAGE" }, // Text has 445, image has 444
-    { code: 445, label: "MOUV. DE CABLE" }, // Text has 446, image has 445
-    { code: 446, label: "ARRET DECIDE" }, // Text has 448, image has 446
-    { code: 447, label: "MANQUE CONDUCTEUR" }, // Text has 449, image has 447
-    { code: 448, label: "BRIQUET" }, // Text has 450, image has 448
-    { code: 449, label: "PERTES (INTEMPERIES EXCLUES)" }, // Text has 451, image has 449
-    { code: 450, label: "ARRETS MECA. INSTALLATIONS FIXES" }, // Text has 452
-    { code: 451, label: "TELESCOPAGE" }, // Text has 453, image has 451
+    { code: 441, label: "RELEVE" }, // Adjusted code based on later user input/context (was 442)
+    { code: 442, label: "EXECUTION PLATE FORME" }, // Adjusted code (was 443)
+    { code: 443, label: "DEPLACEMENT" }, // Adjusted code (was 444)
+    { code: 444, label: "TIR ET SAUTAGE" }, // Adjusted code (was 445)
+    { code: 445, label: "MOUV. DE CABLE" }, // Adjusted code (was 446)
+    { code: 446, label: "ARRET DECIDE" }, // Adjusted code (was 448)
+    { code: 447, label: "MANQUE CONDUCTEUR" }, // Adjusted code (was 449)
+    { code: 448, label: "BRIQUET" }, // Adjusted code (was 450)
+    { code: 449, label: "PERTES (INTEMPERIES EXCLUES)" }, // Adjusted code (was 451)
+    { code: 450, label: "ARRETS MECA. INSTALLATIONS FIXES" }, // Adjusted code (was 452)
+    { code: 451, label: "TELESCOPAGE" }, // Adjusted code (was 453)
     // Assuming the last two codes were typos and should be distinct
-    { code: 452, label: "EXCAVATION PURE" }, // Text has 452
-    { code: 453, label: "TERRASSEMENT PUR" }, // Text has 453
+    { code: 452, label: "EXCAVATION PURE" }, // No change
+    { code: 453, label: "TERRASSEMENT PUR" }, // No change
  ];
+
+ // Initialize ventilation data with empty duree and note
+ const initialVentilationData: VentilationItem[] = ventilationBaseData.map(item => ({
+    ...item,
+    duree: "",
+    note: "", // Initialize note as empty string
+ }));
+
 
  const exploitationLabels = [
     "HEURES COMPTEUR", // This will be calculated (Net Hours)
@@ -229,7 +245,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
     unite: "",
     indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes, order: 1er, 2eme, 3eme
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times
-    ventilation: ventilationData.map(item => ({ ...item, duree: "" })), // Initialize duration for ventilation items
+    ventilation: initialVentilationData, // Use initialized ventilation data with 'note'
     exploitation: exploitationLabels.reduce((acc, label) => ({ ...acc, [label]: "" }), {}), // Initialize exploitation fields
     bulls: ["", "", ""], // Display for gross hours: Index 0: 1er, Index 1: 2eme, Index 2: 3eme
     repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
@@ -259,7 +275,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
       e: React.ChangeEvent<HTMLInputElement>,
       section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls' | 'indexCompteurs' | 'exploitation' | 'personnel',
       indexOrField?: number | string,
-      fieldOrNestedField?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil'] | keyof IndexCompteurPoste | keyof FormData['personnel'] // Added personnel keys
+      fieldOrNestedField?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil'] | keyof IndexCompteurPoste | keyof FormData['personnel'] | 'duree' | 'note' // Added 'note'
     ) => {
       const { name, value } = e.target;
        // Use name attribute for top-level fields if available and section matches a key in FormData
@@ -268,16 +284,16 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
       setFormData(prevData => {
           let newData = { ...prevData };
 
-          if (section === 'ventilation' && typeof indexOrField === 'number') {
+          if (section === 'ventilation' && typeof indexOrField === 'number' && (fieldOrNestedField === 'duree' || fieldOrNestedField === 'note')) {
               const newVentilation = [...newData.ventilation];
               if (newVentilation[indexOrField]) {
-                 newVentilation[indexOrField] = { ...newVentilation[indexOrField], duree: value };
+                 newVentilation[indexOrField] = { ...newVentilation[indexOrField], [fieldOrNestedField]: value };
                  newData.ventilation = newVentilation;
               }
           } else if (section === 'repartitionTravail' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.repartitionTravail[0]) {
               if (newData.repartitionTravail && newData.repartitionTravail[indexOrField]) {
                   const newRepartition = [...newData.repartitionTravail];
-                  newRepartition[indexOrField] = { ...newRepartition[indexOrField], [fieldOrNestedField]: value };
+                  newRepartition[indexOrField] = { ...newRepartition[indexOrField], [fieldOrNestedField as keyof RepartitionItem]: value };
                   newData.repartitionTravail = newRepartition;
               }
           } else if (section === 'indexCompteurs' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.indexCompteurs[0]) {
@@ -695,8 +711,8 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                       <TableHeader className="bg-muted/50">
                         <TableRow>
                           <TableHead className="w-[80px]">Code</TableHead>
-                          <TableHead>Nature de l'Arrêt (Extérieurs, Matériel, Exploitation)</TableHead>
-                          {/* Add columns for 1er, 2eme, 3eme shifts if needed */}
+                          <TableHead>Nature de l'Arrêt</TableHead>
+                          <TableHead className="w-[150px]">Note</TableHead> {/* Added Note Header */}
                           <TableHead className="text-right w-[150px]">Durée Totale</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -705,27 +721,36 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                           <TableRow key={item.code} className="hover:bg-muted/50">
                             <TableCell className="font-medium">{item.code}</TableCell>
                             <TableCell>{item.label}</TableCell>
-                            {/* Add cells for shift-specific durations if needed */}
+                            <TableCell> {/* Added Note Cell */}
+                              <Input
+                                type="text"
+                                className="h-8 text-sm w-full"
+                                placeholder="Ajouter une note..."
+                                value={item.note}
+                                onChange={(e) => handleInputChange(e, "ventilation", index, 'note')}
+                              />
+                            </TableCell>
                             <TableCell className="text-right">
                               <Input
                                 type="text"
                                 className="h-8 text-sm text-right w-full"
                                 placeholder="ex: 1h 30m"
                                 value={item.duree}
-                                onChange={(e) => handleInputChange(e, "ventilation", index)}
+                                onChange={(e) => handleInputChange(e, "ventilation", index, 'duree')}
                               />
                             </TableCell>
                           </TableRow>
                         ))}
                         {/* Add Total Row */}
                          <TableRow className="bg-muted/80 font-semibold">
-                             <TableCell colSpan={2}>TOTAL Arrêts</TableCell>
+                             <TableCell colSpan={3}>TOTAL Arrêts</TableCell> {/* Adjusted colSpan */}
                              <TableCell className="text-right">
                                  <Input
                                     type="text"
                                     className="h-8 text-sm text-right w-full bg-transparent font-semibold border-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                     readOnly
                                     value={formatMinutesToHoursMinutes(totalStopMinutes)}
+                                    tabIndex={-1}
                                   />
                              </TableCell>
                         </TableRow>
@@ -747,12 +772,13 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                                     id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
                                     type={item === "HEURES COMPTEUR" ? "text" : "number"} // Use number for metrics, text for calculated hours
                                     step={item !== "HEURES COMPTEUR" ? "0.01" : undefined} // Allow decimals for metrics
-                                    className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium' : ''}`}
+                                    className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium border-none focus-visible:ring-0 focus-visible:ring-offset-0' : ''}`}
                                     value={formData.exploitation[item]}
                                     onChange={(e) => handleInputChange(e, 'exploitation', item)}
                                     readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
                                     disabled={item === "HEURES COMPTEUR"} // Visually indicate it's disabled
                                     placeholder={item !== "HEURES COMPTEUR" ? "0" : ""}
+                                    tabIndex={item === "HEURES COMPTEUR" ? -1 : undefined}
                                 />
                              </div>
                         ))}
@@ -775,7 +801,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                       type="text"
                       value={formData.bulls[index]} // Display formatted gross hours from bulls array
                       readOnly
-                      className="h-8 bg-muted font-medium" // Style as read-only
+                      className="h-8 bg-muted font-medium border-none focus-visible:ring-0 focus-visible:ring-offset-0" // Style as read-only
                       tabIndex={-1} // Make it non-focusable
                     />
                   </div>
