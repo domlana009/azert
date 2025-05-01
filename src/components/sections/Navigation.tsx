@@ -6,13 +6,12 @@ interface NavigationProps {
 }
 
 export function Navigation({ activeTab, setActiveTab }: NavigationProps) {
-  // Updated navItems with consistent IDs and added 'another-page'
+  // Removed 'another-page' from navItems
   const navItems = [
     { id: "daily-report", label: "Activité TSUD", icon: "fas fa-file-alt" },
     { id: "activity-report", label: "Activité TNR", icon: "fas fa-chart-line" },
     { id: "r0-report", label: "Rapport R0", icon: "fas fa-file" }, // Changed ID
     { id: "truck-tracking", label: "Pointage Camions", icon: "fas fa-truck" },
-    { id: "another-page", label: "Rapport Détaillé", icon: "fas fa-clipboard-list" }, // Added new item
    ];
 
   return (

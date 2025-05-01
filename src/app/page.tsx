@@ -13,8 +13,7 @@ import {
   ActivityReport,
   TruckTracking,
   R0Report,
-  AnotherPageReport,
-} from "@/components/sections"; // Adjusted import path
+} from "@/components/sections"; // Removed AnotherPageReport import
 import Link from "next/link";
 
 const userName = "JD"; // Replace with actual user data if available
@@ -103,9 +102,7 @@ export default function Home() {
                   {activeTab === "truck-tracking" && (
                     <TruckTracking currentDate={getFormattedDate(currentDate, dateOptions)} />
                   )}
-                  {activeTab === "another-page" && ( // Check for 'another-page' ID
-                    <AnotherPageReport currentDate={getFormattedDate(currentDate, dateOptions)} />
-                  )}
+                  {/* Removed rendering condition for another-page */}
                </>
            )}
             {!currentDate && (
