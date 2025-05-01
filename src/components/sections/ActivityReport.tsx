@@ -122,9 +122,10 @@ interface Stop {
   nature: string;
 }
 
-// Updated Counter interface: removed post and total, added optional error field
+// Updated Counter interface: added poste, removed total, added optional error field
 interface Counter {
     id: string;
+    poste?: Poste | ''; // Added optional Poste field
     start: string;
     end: string;
     error?: string; // Optional error message for this entry
@@ -160,9 +161,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
       nature: "Attent Saturation SiCo",
     },
   ]);
-  // Updated initial state for vibrator counters
+  // Updated initial state for vibrator counters to include poste
   const [vibratorCounters, setVibratorCounters] = useState<Counter[]>([
-    { id: crypto.randomUUID(), start: "9341.0", end: "9395.30" }, // Example values
+    { id: crypto.randomUUID(), poste: "1er", start: "9341.0", end: "9395.30" }, // Example values with poste
   ]);
   // State for liaison counters
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
@@ -236,9 +237,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]);
   };
 
-  // Updated addVibratorCounter to match new interface
+  // Updated addVibratorCounter to include poste
   const addVibratorCounter = () => {
-    setVibratorCounters([...vibratorCounters, { id: crypto.randomUUID(), start: "", end: "" }]);
+    setVibratorCounters([...vibratorCounters, { id: crypto.randomUUID(), poste: "", start: "", end: "" }]);
   };
 
   // Function to add liaison counter
@@ -302,15 +303,15 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
  };
 
 
- // Updated updateVibratorCounter with validation
+ // Updated updateVibratorCounter with validation and poste handling
  const updateVibratorCounter = (id: string, field: keyof Omit<Counter, 'id' | 'error'>, value: string) => {
     setVibratorCounters(vibratorCounters.map(counter => {
         if (counter.id === id) {
             const updatedCounter = { ...counter, [field]: value };
-            // Validate after update
+            // Validate start/end after update
             const error = validateCounterEntry(
-                field === 'start' ? value : updatedCounter.start,
-                field === 'end' ? value : updatedCounter.end
+                field === 'start' || field === 'poste' ? updatedCounter.start : value, // Use updated start if field is start or poste
+                field === 'end' || field === 'poste' ? updatedCounter.end : value     // Use updated end if field is end or poste
             );
             return { ...updatedCounter, error };
         }
@@ -360,6 +361,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     // Re-validate all counters on submit just in case
     let vibratorValidationFailed = false;
     const finalVibratorCounters = vibratorCounters.map(c => {
+        // Ensure poste is selected
+        if (!c.poste) {
+            vibratorValidationFailed = true;
+            return { ...c, error: "Veuillez sélectionner un poste." };
+        }
         const error = validateCounterEntry(c.start, c.end);
         if (error) vibratorValidationFailed = true;
         return { ...c, error };
@@ -533,7 +539,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs vibreurs. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
+                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes et les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -541,6 +547,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
+                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]"> {/* Added width */}
+                                    Poste
+                                </TableHead>
                                 <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                                     Début (ex: 9341.0)
                                 </TableHead>
@@ -553,11 +562,29 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                             <TableBody>
                                 {vibratorCounters.map((counter) => (
                                 <TableRow key={counter.id} className="hover:bg-muted/50">
+                                     <TableCell className="p-2"> {/* Cell for Poste Select */}
+                                        <Select
+                                            value={counter.poste}
+                                            onValueChange={(value: Poste) => updateVibratorCounter(counter.id, "poste", value)}
+                                            >
+                                            <SelectTrigger className={cn("h-8 text-sm", counter.error?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                                <SelectValue placeholder="Sélectionner" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {POSTE_ORDER.map(p => (
+                                                    <SelectItem key={p} value={p}>
+                                                        {p} Poste ({POSTE_TIMES[p]})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                         {counter.error?.includes("poste") && <p className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                    </TableCell>
                                     <TableCell className="p-2">
                                     <Input
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal" // Hint for mobile keyboards
-                                        className={cn("w-full h-8 text-sm", counter.error && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.start}
                                         placeholder="Index début"
                                         onChange={(e) =>
@@ -566,13 +593,13 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                         aria-invalid={!!counter.error}
                                         aria-describedby={counter.error ? `error-vibrator-${counter.id}` : undefined}
                                     />
-                                     {counter.error && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                     {counter.error && !counter.error.includes("poste") && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
                                     </TableCell>
                                     <TableCell className="p-2">
                                     <Input
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", counter.error && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.end}
                                         placeholder="Index fin"
                                         onChange={(e) =>
@@ -600,7 +627,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                 ))}
                                 {vibratorCounters.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
                                             Aucun compteur vibreur ajouté.
                                         </TableCell>
                                     </TableRow>
