@@ -140,13 +140,15 @@ interface LiaisonCounter {
     error?: string; // Optional error message for this entry
 }
 
-// Simplified Stock Entry interface
+// Simplified Stock Entry interface - Added poste field
 interface StockEntry {
   id: string;
+  poste: Poste | ''; // Added Poste selection
   park: Park | '';
   type: StockType | ''; // Only product types
   quantity: string; // For NORMAL, OCEANE, PB30
   startTime: string; // For HEURE DEBUT STOCK - kept separate for clarity
+  error?: string; // Optional error for poste selection
 }
 
 
@@ -170,9 +172,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
     { id: crypto.randomUUID(), poste: "2ème", start: "100.5", end: "105.75" }, // Example values with poste
   ]);
-  // Updated state for stock entries
+  // Updated state for stock entries - Added poste
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([
-      { id: crypto.randomUUID(), park: '', type: '', quantity: '', startTime: '' } // Start with one empty entry
+      { id: crypto.randomUUID(), poste: '', park: '', type: '', quantity: '', startTime: '' } // Start with one empty entry including poste
   ]);
   // State for the single "Heure Debut Stock" time
   const [stockStartTime, setStockStartTime] = useState('');
@@ -186,6 +188,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   // State to track if there are any counter errors
   const [hasVibratorErrors, setHasVibratorErrors] = useState(false);
   const [hasLiaisonErrors, setHasLiaisonErrors] = useState(false);
+  // State to track stock entry errors (specifically for poste selection)
+  const [hasStockErrors, setHasStockErrors] = useState(false);
 
 
   // Calculate total downtime and operating time whenever stops change
@@ -233,6 +237,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     }
   }, [liaisonCounters]); // Removed TOTAL_PERIOD_MINUTES dependency
 
+   // Check for stock entry errors (poste selection)
+  useEffect(() => {
+    setHasStockErrors(stockEntries.some(entry => !!entry.error));
+  }, [stockEntries]);
+
 
   const addStop = () => {
     setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]);
@@ -248,9 +257,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setLiaisonCounters([...liaisonCounters, { id: crypto.randomUUID(), poste: "", start: "", end: "" }]);
   };
 
-   // Function to add stock entry
+   // Function to add stock entry - includes poste
    const addStockEntry = () => {
-        setStockEntries([...stockEntries, { id: crypto.randomUUID(), park: '', type: '', quantity: '', startTime: '' }]);
+        setStockEntries([...stockEntries, { id: crypto.randomUUID(), poste: '', park: '', type: '', quantity: '', startTime: '' }]);
    };
 
 
@@ -316,10 +325,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
             );
             // Add poste validation check - ensure poste is selected
             let finalError = error;
-            if (field !== 'poste' && !updatedCounter.poste) {
+             // Check poste only if start or end has a value (or if poste itself is being cleared)
+             if ((updatedCounter.start || updatedCounter.end) && !updatedCounter.poste && field !== 'poste') {
                  finalError = "Veuillez sélectionner un poste.";
-             } else if (field === 'poste' && !value) {
-                 finalError = "Veuillez sélectionner un poste.";
+             } else if (field === 'poste' && !value && (updatedCounter.start || updatedCounter.end)) {
+                  finalError = "Veuillez sélectionner un poste.";
              }
 
             return { ...updatedCounter, error: finalError };
@@ -340,10 +350,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
             );
              // Add poste validation check - ensure poste is selected
              let finalError = error;
-             if (field !== 'poste' && !updatedCounter.poste) {
+              // Check poste only if start or end has a value (or if poste itself is being cleared)
+             if ((updatedCounter.start || updatedCounter.end) && !updatedCounter.poste && field !== 'poste') {
                  finalError = "Veuillez sélectionner un poste.";
-             } else if (field === 'poste' && !value) {
-                 finalError = "Veuillez sélectionner un poste.";
+             } else if (field === 'poste' && !value && (updatedCounter.start || updatedCounter.end)) {
+                  finalError = "Veuillez sélectionner un poste.";
              }
 
              return { ...updatedCounter, error: finalError };
@@ -353,54 +364,93 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
  };
 
 
- // Function to update stock entry - simplified
- const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id'>, value: string | boolean, parkOrType?: Park | StockType) => {
+ // Function to update stock entry - simplified, includes poste
+ const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id' | 'error'>, value: string | boolean, parkOrType?: Park | StockType) => {
     setStockEntries(stockEntries.map(entry => {
       if (entry.id === id) {
-        if (field === 'park') {
-           // Only allow one park selection per entry
-          return { ...entry, park: value as Park, type: '', quantity: '' }; // Reset type/quantity when park changes
-        } else if (field === 'type') {
-          // Only allow one type selection per entry
-          return { ...entry, type: value as StockType, quantity: '' }; // Reset quantity when type changes
-        } else if (field === 'quantity') {
-          return { ...entry, quantity: value as string };
-        }
+         const updatedEntry = { ...entry, [field]: value };
+         let error = undefined;
+
+         // Reset dependent fields or validate poste
+         if (field === 'poste') {
+             updatedEntry.park = ''; // Reset park, type, quantity when poste changes
+             updatedEntry.type = '';
+             updatedEntry.quantity = '';
+             // Validate if poste is empty but other fields are not (only if clearing poste)
+             if (!value && (updatedEntry.park || updatedEntry.type || updatedEntry.quantity)) {
+                  error = "Veuillez sélectionner un poste.";
+             }
+         } else if (field === 'park') {
+             updatedEntry.type = ''; // Reset type/quantity when park changes
+             updatedEntry.quantity = '';
+             // Validate if poste is empty when park is selected
+             if (value && !updatedEntry.poste) {
+                  error = "Veuillez sélectionner un poste d'abord.";
+             }
+         } else if (field === 'type') {
+            updatedEntry.quantity = ''; // Reset quantity when type changes
+            // Validate if poste is empty when type is selected
+             if (value && !updatedEntry.poste) {
+                  error = "Veuillez sélectionner un poste d'abord.";
+             }
+         } else if (field === 'quantity') {
+             // Validate if poste is empty when quantity is entered
+             if (value && !updatedEntry.poste) {
+                  error = "Veuillez sélectionner un poste d'abord.";
+             }
+         }
+
+         // Assign the determined error
+         updatedEntry.error = error;
+
+         return updatedEntry;
       }
       return entry;
     }));
   };
 
-  // Handle form submission - Prevent if counter errors exist
+  // Handle form submission - Prevent if counter or stock errors exist
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Re-validate all counters on submit just in case
     let vibratorValidationFailed = false;
     const finalVibratorCounters = vibratorCounters.map(c => {
-        // Ensure poste is selected
-        if (!c.poste) {
-            vibratorValidationFailed = true;
-            return { ...c, error: "Veuillez sélectionner un poste." };
+        // Ensure poste is selected if start or end is filled
+        let error = validateCounterEntry(c.start, c.end);
+        if (!error && (c.start || c.end) && !c.poste) {
+            error = "Veuillez sélectionner un poste.";
         }
-        const error = validateCounterEntry(c.start, c.end);
         if (error) vibratorValidationFailed = true;
         return { ...c, error };
     });
-    setVibratorCounters(finalVibratorCounters); // Update state with final validation results
+    setVibratorCounters(finalVibratorCounters);
 
     let liaisonValidationFailed = false;
     const finalLiaisonCounters = liaisonCounters.map(c => {
-         // Ensure poste is selected for liaison counters too
-         if (!c.poste) {
-            liaisonValidationFailed = true;
-            return { ...c, error: "Veuillez sélectionner un poste." };
+         // Ensure poste is selected for liaison counters too if start or end is filled
+         let error = validateCounterEntry(c.start, c.end);
+         if (!error && (c.start || c.end) && !c.poste) {
+             error = "Veuillez sélectionner un poste.";
          }
-        const error = validateCounterEntry(c.start, c.end);
-        if (error) liaisonValidationFailed = true;
+         if (error) liaisonValidationFailed = true;
         return { ...c, error };
     });
-    setLiaisonCounters(finalLiaisonCounters); // Update state with final validation results
+    setLiaisonCounters(finalLiaisonCounters);
+
+    // Re-validate stock entries for poste selection
+    let stockValidationFailed = false;
+    const finalStockEntries = stockEntries.map(entry => {
+         let error = undefined;
+         // Check if poste is missing when other dependent fields are filled
+         if (!entry.poste && (entry.park || entry.type || entry.quantity)) {
+             error = "Veuillez sélectionner un poste.";
+             stockValidationFailed = true;
+         }
+         return { ...entry, error };
+    });
+    setStockEntries(finalStockEntries);
+
 
     // Recalculate totals based on potentially updated error states
     const finalVibratorTotal = calculateTotalCounterMinutes(finalVibratorCounters.filter(c => !c.error));
@@ -410,7 +460,6 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     if (finalVibratorTotal > TOTAL_PERIOD_MINUTES) {
         console.error("Validation failed: Total vibreur duration exceeds 24h period.");
         vibratorValidationFailed = true;
-        // Optionally set a general error state here if not already handled by individual counter errors
     }
      if (finalLiaisonTotal > TOTAL_PERIOD_MINUTES) {
         console.error("Validation failed: Total liaison duration exceeds 24h period.");
@@ -418,10 +467,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     }
 
 
-    if (vibratorValidationFailed || liaisonValidationFailed) {
-        console.error("Validation failed: Invalid counter inputs detected.");
+    if (vibratorValidationFailed || liaisonValidationFailed || stockValidationFailed) {
+        console.error("Validation failed: Invalid inputs detected in counters or stock.");
         // Optionally, provide user feedback (e.g., using a toast)
-        // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les compteurs.", variant: "destructive" });
+        // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les formulaires.", variant: "destructive" });
         return; // Stop submission
     }
 
@@ -431,7 +480,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
         stops,
         vibratorCounters: finalVibratorCounters, // Submit validated counters
         liaisonCounters: finalLiaisonCounters, // Submit validated counters
-        stockEntries,
+        stockEntries: finalStockEntries, // Submit validated stock entries
         stockStartTime,
         totalDowntime,
         operatingTime,
@@ -787,6 +836,16 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Plus className="h-4 w-4 mr-1" /> Ajouter Entrée Stock
                         </Button>
                     </div>
+                     {/* General Error Alert for Stock */}
+                    {hasStockErrors && (
+                        <Alert variant="destructive" className="mt-2">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                                Erreur(s) dans les entrées de stock. Veuillez sélectionner un poste pour chaque entrée active.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
 
                     {/* HEURE DEBUT STOCK Input */}
                     <div className="mb-4">
@@ -804,6 +863,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
+                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">Poste</TableHead> {/* Added Poste Head */}
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">PARK</TableHead>
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[250px]">Type Produit</TableHead>
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Quantité</TableHead>
@@ -813,6 +873,25 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <TableBody>
                             {stockEntries.map((entry) => (
                             <TableRow key={entry.id} className="hover:bg-muted/50">
+                                {/* Poste Selection Cell */}
+                                <TableCell className="p-2 align-top">
+                                    <Select
+                                        value={entry.poste}
+                                        onValueChange={(value: Poste) => updateStockEntry(entry.id, "poste", value)}
+                                        >
+                                        <SelectTrigger className={cn("h-8 text-sm w-[130px]", entry.error && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectValue placeholder="Poste" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {POSTE_ORDER.map(p => (
+                                                <SelectItem key={p} value={p}>
+                                                    {p} Poste
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {entry.error && <p className="text-xs text-destructive pt-1">{entry.error}</p>}
+                                </TableCell>
                                 {/* Park Checkboxes */}
                                 <TableCell className="p-2 align-top">
                                 <div className="space-y-2">
@@ -821,9 +900,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                         <Checkbox
                                         id={`${entry.id}-${park}`}
                                         checked={entry.park === park}
+                                        disabled={!entry.poste} // Disable if no poste selected
                                         onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : '', park)}
                                         />
-                                        <Label htmlFor={`${entry.id}-${park}`} className="font-normal text-sm">{park}</Label>
+                                        <Label htmlFor={`${entry.id}-${park}`} className={`font-normal text-sm ${!entry.poste ? 'text-muted-foreground' : ''}`}>{park}</Label>
                                     </div>
                                     ))}
                                 </div>
@@ -836,10 +916,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                         <Checkbox
                                         id={`${entry.id}-${type}`}
                                         checked={entry.type === type}
-                                        disabled={!entry.park} // Disable if no park selected
+                                        disabled={!entry.poste || !entry.park} // Disable if no poste or park selected
                                         onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
                                         />
-                                        <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                                        <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
                                     </div>
                                     ))}
                                 </div>
@@ -853,7 +933,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                     className="w-full h-8 text-sm mt-1" // Align with checkboxes
                                     placeholder="Quantité"
                                     value={entry.quantity}
-                                    disabled={!entry.type} // Disable if no type selected
+                                    disabled={!entry.poste || !entry.type} // Disable if no poste or type selected
                                     onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
                                 />
                                 </TableCell>
@@ -874,7 +954,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                             ))}
                             {stockEntries.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground p-4">
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
                                         Aucune entrée de stock ajoutée.
                                     </TableCell>
                                 </TableRow>
@@ -888,7 +968,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                 {/* Action Buttons */}
                 <div className="mt-8 flex justify-end space-x-3"> {/* Added margin-top */}
                     <Button type="button" variant="outline">Enregistrer Brouillon</Button> {/* Changed to type="button" */}
-                    <Button type="submit" disabled={hasVibratorErrors || hasLiaisonErrors}>
+                    <Button type="submit" disabled={hasVibratorErrors || hasLiaisonErrors || hasStockErrors}> {/* Disable submit if errors */}
                         Soumettre Rapport
                     </Button> {/* Disable submit if errors */}
                 </div>
@@ -898,3 +978,4 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   );
 }
 
+    
