@@ -1,10 +1,20 @@
+
 "use client";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface DailyReportProps {
   currentDate: string;
@@ -51,7 +61,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     }
   };
 
-  const updateStop = (module: number, index: number, field: string, value: string) => {
+  const updateStop = (module: number, index: number, field: keyof ModuleStop, value: string) => {
     if (module === 1) {
       const newStops = [...module1Stops];
       newStops[index][field] = value;
@@ -64,19 +74,19 @@ export function DailyReport({ currentDate }: DailyReportProps) {
   };
 
   return (
-    <Card className="bg-white rounded-lg p-6 mb-6">
-      <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0">
-        <CardTitle className="text-xl font-bold text-gray-800">
-          RAPPORT JOURNALIER
+    <Card className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b mb-6">
+        <CardTitle className="text-xl font-bold text-foreground">
+          RAPPORT JOURNALIER (Activité TSUD)
         </CardTitle>
-        <span className="text-sm text-gray-500">{currentDate}</span>
+        <span className="text-sm text-muted-foreground">{currentDate}</span>
       </CardHeader>
 
-      <CardContent className="p-0">
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">Site</label>
+      <CardContent className="p-0 space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="site-select" className="text-foreground">Site</Label>
           <Select>
-            <SelectTrigger className="w-full">
+            <SelectTrigger id="site-select" className="w-full">
               <SelectValue placeholder="Select Site" />
             </SelectTrigger>
             <SelectContent>
@@ -87,203 +97,229 @@ export function DailyReport({ currentDate }: DailyReportProps) {
           </Select>
         </div>
 
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-gray-700">Module 1</h3>
-            <Button variant="link" className="text-blue-500 text-sm" onClick={() => addStop(1)}>
-              Ajouter Arrêt
+        {/* Module 1 Section */}
+        <div className="space-y-4 p-4 border rounded-lg bg-card">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-lg text-foreground">Module 1</h3>
+            <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={() => addStop(1)}>
+              + Ajouter Arrêt
             </Button>
           </div>
 
-          <div className="table-responsive">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
                     Durée
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
                     HM
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
                     HA
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600"></th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {module1Stops.map((stop, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="p-2">
+                  <TableRow key={index} className="hover:bg-muted/50">
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-20"
+                        className="w-full h-8 text-sm"
                         value={stop.duration}
                         onChange={(e) =>
                           updateStop(1, index, "duration", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
+                        className="w-full h-8 text-sm"
                         value={stop.nature}
                         onChange={(e) =>
                           updateStop(1, index, "nature", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-20"
+                        className="w-full h-8 text-sm"
                         value={stop.hm}
                         onChange={(e) => updateStop(1, index, "hm", e.target.value)}
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-20"
+                        className="w-full h-8 text-sm"
                         value={stop.ha}
                         onChange={(e) => updateStop(1, index, "ha", e.target.value)}
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2 text-right">
                       <Button
                         variant="ghost"
+                        size="icon"
                         onClick={() => deleteStop(1, index)}
-                        className="text-red-500"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                       >
                         <Trash className="h-4 w-4" />
+                        <span className="sr-only">Supprimer</span>
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+                 {module1Stops.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground p-4">
+                            Aucun arrêt ajouté pour le Module 1.
+                        </TableCell>
+                    </TableRow>
+                 )}
+              </TableBody>
+            </Table>
           </div>
         </div>
 
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-gray-700">Module 2</h3>
-            <Button variant="link" className="text-blue-500 text-sm" onClick={() => addStop(2)}>
-              Ajouter Arrêt
+        {/* Module 2 Section */}
+         <div className="space-y-4 p-4 border rounded-lg bg-card">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-lg text-foreground">Module 2</h3>
+            <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={() => addStop(2)}>
+              + Ajouter Arrêt
             </Button>
           </div>
 
-          <div className="table-responsive">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+          <div className="overflow-x-auto">
+             <Table>
+               <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
                     Durée
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
                     HM
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
                     HA
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600"></th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {module2Stops.map((stop, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="p-2">
+                  <TableRow key={index} className="hover:bg-muted/50">
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-20"
+                        className="w-full h-8 text-sm"
                         value={stop.duration}
                         onChange={(e) =>
                           updateStop(2, index, "duration", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
+                        className="w-full h-8 text-sm"
                         value={stop.nature}
                         onChange={(e) =>
                           updateStop(2, index, "nature", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-20"
+                        className="w-full h-8 text-sm"
                         value={stop.hm}
                         onChange={(e) => updateStop(2, index, "hm", e.target.value)}
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-20"
+                        className="w-full h-8 text-sm"
                         value={stop.ha}
                         onChange={(e) => updateStop(2, index, "ha", e.target.value)}
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2 text-right">
                       <Button
                         variant="ghost"
+                        size="icon"
                         onClick={() => deleteStop(2, index)}
-                        className="text-red-500"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                       >
                         <Trash className="h-4 w-4" />
+                         <span className="sr-only">Supprimer</span>
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+                {module2Stops.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground p-4">
+                            Aucun arrêt ajouté pour le Module 2.
+                        </TableCell>
+                    </TableRow>
+                 )}
+              </TableBody>
+            </Table>
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="font-medium text-gray-700 mb-3">Totaux</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-600 text-sm mb-1">
+        {/* Totaux Section */}
+        <div className="p-4 border rounded-lg bg-muted/30">
+          <h3 className="font-semibold text-lg text-foreground mb-4">Totaux</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="total-m1-hm" className="text-sm text-muted-foreground">
                 Module 1 HM
-              </label>
-              <Input type="text" defaultValue="σ·6·H·20" />
+              </Label>
+              <Input id="total-m1-hm" type="text" defaultValue="σ·6·H·20" className="h-9"/>
             </div>
-            <div>
-              <label className="block text-gray-600 text-sm mb-1">
+            <div className="space-y-1">
+              <Label htmlFor="total-m1-ha" className="text-sm text-muted-foreground">
                 Module 1 HA
-              </label>
-              <Input type="text" defaultValue="A7·H·40" />
+              </Label>
+              <Input id="total-m1-ha" type="text" defaultValue="A7·H·40" className="h-9"/>
             </div>
-            <div>
-              <label className="block text-gray-600 text-sm mb-1">
+            <div className="space-y-1">
+              <Label htmlFor="total-m2-hm" className="text-sm text-muted-foreground">
                 Module 2 HM
-              </label>
-              <Input type="text" defaultValue="A6·H·5.5" />
+              </Label>
+              <Input id="total-m2-hm" type="text" defaultValue="A6·H·5.5" className="h-9"/>
             </div>
-            <div>
-              <label className="block text-gray-600 text-sm mb-1">
+            <div className="space-y-1">
+              <Label htmlFor="total-m2-ha" className="text-sm text-muted-foreground">
                 Module 2 HA
-              </label>
-              <Input type="text" defaultValue="σ·7·H·0.5" />
+              </Label>
+              <Input id="total-m2-ha" type="text" defaultValue="σ·7·H·0.5" className="h-9"/>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end space-x-3">
-          <Button variant="secondary">Enregistrer</Button>
-          <Button>Soumettre</Button>
+        {/* Action Buttons */}
+        <div className="mt-8 flex justify-end space-x-3">
+          <Button variant="outline">Enregistrer Brouillon</Button>
+          <Button>Soumettre Rapport</Button>
         </div>
       </CardContent>
     </Card>
   );
 }
+
+    
