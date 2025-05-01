@@ -27,8 +27,7 @@ interface Stop {
   id: string;
   duration: string;
   nature: string;
-  hm: string;
-  ha: string;
+  // Removed hm and ha
 }
 
 interface Counter {
@@ -43,14 +42,12 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
 
   const [stops, setStops] = useState<Stop[]>([
-    { id: crypto.randomUUID(), duration: "4:1o", nature: "Manque Produit", hm: "66H", ha: "17H" },
+    { id: crypto.randomUUID(), duration: "4:1o", nature: "Manque Produit" }, // Removed hm, ha
     {
       id: crypto.randomUUID(),
       duration: "4:1v",
       nature: "Attent Saturation SiCo",
-      hm: "55",
-      ha: "15H",
-    },
+    }, // Removed hm, ha
   ]);
 
   const [counters, setCounters] = useState<Counter[]>([
@@ -58,7 +55,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   ]);
 
   const addStop = () => {
-    setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "", hm: "", ha: "" }]);
+    setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]); // Removed hm, ha
   };
 
   const addCounter = () => {
@@ -73,6 +70,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setCounters(counters.filter(counter => counter.id !== id));
   };
 
+ // Update field type to exclude hm and ha
  const updateStop = (id: string, field: keyof Omit<Stop, 'id'>, value: string) => {
     setStops(stops.map(stop => stop.id === id ? { ...stop, [field]: value } : stop));
  };
@@ -123,12 +121,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                   <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
                     Nature
                   </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
-                    HM
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
-                    HA
-                  </th>
+                  {/* Removed HM and HA headers */}
                   <th className="p-2 text-right text-sm font-medium text-gray-600 dark:text-gray-400 w-[50px]"></th>
                 </tr>
               </thead>
@@ -155,22 +148,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         }
                       />
                     </td>
-                    <td className="p-2">
-                      <Input
-                        type="text"
-                        className="w-20 h-8 text-sm"
-                        value={stop.hm}
-                        onChange={(e) => updateStop(stop.id, "hm", e.target.value)}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        type="text"
-                        className="w-20 h-8 text-sm"
-                        value={stop.ha}
-                        onChange={(e) => updateStop(stop.id, "ha", e.target.value)}
-                      />
-                    </td>
+                    {/* Removed HM and HA inputs */}
                     <td className="p-2 text-right">
                        <Button
                         variant="ghost"
@@ -186,7 +164,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                 ))}
                  {stops.length === 0 && (
                     <tr className="border-b dark:border-gray-700">
-                        <td colSpan={5} className="text-center text-muted-foreground dark:text-gray-500 p-4">
+                         {/* Adjusted colSpan to 3 */}
+                        <td colSpan={3} className="text-center text-muted-foreground dark:text-gray-500 p-4">
                             Aucun arrêt ajouté.
                         </td>
                     </tr>
