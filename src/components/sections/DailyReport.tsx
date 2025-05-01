@@ -24,8 +24,7 @@ interface ModuleStop {
   id: string; // Add unique id for key prop
   duration: string;
   nature: string;
-  hm: string;
-  ha: string;
+  // Removed hm and ha
 }
 
 type Poste = "1er" | "2ème" | "3ème";
@@ -97,13 +96,11 @@ export function DailyReport({ currentDate }: DailyReportProps) {
       id: crypto.randomUUID(),
       duration: "1·20",
       nature: "Marque produit d'agissant steril",
-      hm: "6H·20",
-      ha: "1·40",
     },
-    { id: crypto.randomUUID(), duration: "20", nature: "", hm: "", ha: "" },
+    { id: crypto.randomUUID(), duration: "20", nature: "" },
   ]);
   const [module2Stops, setModule2Stops] = useState<ModuleStop[]>([
-    { id: crypto.randomUUID(), duration: "40", nature: "Lancement Vol. G3", hm: "6·H·55", ha: "55" },
+    { id: crypto.randomUUID(), duration: "40", nature: "Lancement Vol. G3" },
   ]);
 
   const [module1TotalDowntime, setModule1TotalDowntime] = useState(0);
@@ -139,7 +136,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
 
 
   const addStop = (module: number) => {
-    const newStop: ModuleStop = { id: crypto.randomUUID(), duration: "", nature: "", hm: "", ha: "" };
+    const newStop: ModuleStop = { id: crypto.randomUUID(), duration: "", nature: "" }; // Removed hm, ha
     if (module === 1) {
       setModule1Stops([...module1Stops, newStop]);
     } else {
@@ -155,6 +152,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     }
   };
 
+  // Updated updateStop to exclude hm and ha
   const updateStop = (module: number, id: string, field: keyof Omit<ModuleStop, 'id'>, value: string) => {
      const updater = (stops: ModuleStop[]) => {
         return stops.map(stop => {
@@ -223,12 +221,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
                   </TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
-                    HM
-                  </TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
-                    HA
-                  </TableHead>
+                  {/* Removed HM and HA headers */}
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -256,22 +249,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                         }
                       />
                     </TableCell>
-                    <TableCell className="p-2">
-                      <Input
-                        type="text"
-                        className="w-full h-8 text-sm"
-                        value={stop.hm}
-                        onChange={(e) => updateStop(1, stop.id, "hm", e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell className="p-2">
-                      <Input
-                        type="text"
-                        className="w-full h-8 text-sm"
-                        value={stop.ha}
-                        onChange={(e) => updateStop(1, stop.id, "ha", e.target.value)}
-                      />
-                    </TableCell>
+                    {/* Removed HM and HA cells */}
                     <TableCell className="p-2 text-right">
                       <Button
                         variant="ghost"
@@ -287,7 +265,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                 ))}
                  {module1Stops.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground p-4">
+                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4"> {/* Adjusted colSpan to 3 */}
                             Aucun arrêt ajouté pour le Module 1.
                         </TableCell>
                     </TableRow>
@@ -319,12 +297,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
                   </TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
-                    HM
-                  </TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[100px]">
-                    HA
-                  </TableHead>
+                   {/* Removed HM and HA headers */}
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -352,22 +325,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                         }
                       />
                     </TableCell>
-                    <TableCell className="p-2">
-                      <Input
-                        type="text"
-                        className="w-full h-8 text-sm"
-                        value={stop.hm}
-                        onChange={(e) => updateStop(2, stop.id, "hm", e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell className="p-2">
-                      <Input
-                        type="text"
-                        className="w-full h-8 text-sm"
-                        value={stop.ha}
-                        onChange={(e) => updateStop(2, stop.id, "ha", e.target.value)}
-                      />
-                    </TableCell>
+                    {/* Removed HM and HA cells */}
                     <TableCell className="p-2 text-right">
                       <Button
                         variant="ghost"
@@ -383,7 +341,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                 ))}
                 {module2Stops.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground p-4">
+                         <TableCell colSpan={3} className="text-center text-muted-foreground p-4"> {/* Adjusted colSpan to 3 */}
                             Aucun arrêt ajouté pour le Module 2.
                         </TableCell>
                     </TableRow>
@@ -424,4 +382,3 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     </Card>
   );
 }
-
