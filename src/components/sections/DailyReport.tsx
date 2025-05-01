@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,11 +31,14 @@ interface ModuleStop {
 
 type Poste = "1er" | "2ème" | "3ème";
 
+// Updated Poste times and order
 const POSTE_TIMES: Record<Poste, string> = {
+  "3ème": "22:30 - 06:30",
   "1er": "06:30 - 14:30",
   "2ème": "14:30 - 22:30",
-  "3ème": "22:30 - 06:30",
 };
+const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
+
 
 // Helper function to parse duration strings into minutes
 function parseDurationToMinutes(duration: string): number {
@@ -119,6 +123,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
    useEffect(() => {
     const calculateTotals = (stops: ModuleStop[]) => {
       const totalDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
+      // Calculate operating time based on a standard 8-hour shift
       const operatingTime = TOTAL_SHIFT_MINUTES - totalDowntime;
       return { totalDowntime, operatingTime };
     };
@@ -198,11 +203,11 @@ export function DailyReport({ currentDate }: DailyReportProps) {
           <div className="space-y-2">
             <Label className="text-foreground">Poste</Label>
             <RadioGroup
-              defaultValue={selectedPoste}
+              value={selectedPoste} // Controlled component
               onValueChange={(value: Poste) => setSelectedPoste(value)}
               className="flex space-x-4 pt-2"
             >
-              {(["3ème", "1er", "2ème"] as Poste[]).map((poste) => ( // Order 3, 1, 2
+              {POSTE_ORDER.map((poste) => ( // Use defined order
                 <div key={poste} className="flex items-center space-x-2">
                   <RadioGroupItem value={poste} id={`poste-${poste}`} />
                   <Label htmlFor={`poste-${poste}`} className="font-normal">
@@ -435,3 +440,4 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     </Card>
   );
 }
+

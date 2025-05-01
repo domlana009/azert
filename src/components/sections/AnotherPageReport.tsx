@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -18,7 +17,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-interface R0ReportProps {
+interface AnotherPageReportProps {
   currentDate: string;
 }
 
@@ -40,196 +39,182 @@ interface RepartitionItem {
 }
 
 interface FormData {
+  entree: string;
+  secteur: string;
+  rapportNo: string;
+  machineEngins: string;
+  sa: string;
   unite: string;
   indexCompteur: string;
-  shifts: string[]; // Assuming shifts corresponds to postes 1er, 2eme, 3eme
-  ventilation: string[];
-  bulls: string[]; // Assuming bulls corresponds to postes 1er, 2eme, 3eme
+  shifts: string[]; // Corresponds to 1er, 2eme, 3eme D/F times
+  ventilation: { [code: number]: string }; // Use code as key for easier access
+  bulls: string[]; // Corresponds to 1er, 2eme, 3eme D manque bull
   repartitionTravail: RepartitionItem[];
+  exploitation: { [key: string]: string }; // For metrics like HEURES COMPTEUR etc.
+  personnel: {
+      conducteur: string;
+      graisseur: string;
+      matricules: string;
+  };
   tricone: {
+    marque: string;
+    serie: string;
+    type: string;
+    diametre: string;
     pose: string;
     depose: string;
     causeDepose: string;
+    indexCompteur: string; // Specific index for tricone
   };
   gasoil: {
     lieuAppoint: string;
-    indexCompteur: string;
+    indexCompteur: string; // Specific index for gasoil
     quantiteDelivree: string;
   };
-  machineMarque: string;
-  machineSerie: string;
-  machineType: string;
-  machineDiametre: string;
 }
 
 
-// Sample data structure based on user input (assuming this structure)
+// Data structure based on user input
  const data = {
     ventilation: [
       { code: 121, label: "ARRET CARREAU INDUSTRIEL" },
-      { code: 122, label: "COUPURE GENERALE DU COURANT" },
+      { code: 122, label: "COUPURE GENERALE DU COURANT", shifts: [7, 15, 23] }, // Example shift codes
       { code: 123, label: "GREVE" },
       { code: 124, label: "INTEMPERIES" },
       { code: 125, label: "STOCKS PLEINS" },
-      { code: 126, label: "J. FERIES OU HEBDOMADAIRES" }, // Note: Corrected FÊRIES to FERIES
+      { code: 126, label: "J. FERIES OU HEBDOMADAIRES", shifts: [8, 16, 24] },
       { code: 128, label: "ARRET PAR LA CENTRALE (ENERGIE)" },
       { code: 230, label: "CONTROLE" },
-      { code: 231, label: "DEFAUT ELEC. (C. CRAME, RESEAU)" }, // Note: Corrected C.RAME to C. CRAME
-      { code: 232, label: "PANNE MECANIQUE" },
-      { code: 233, label: "PANNE ELECTRIQUE" }, // Added Panne Electrique based on context
+      { code: 231, label: "DEFAUT ELEC. (C. CRAME, RESEAU)" },
+      { code: 232, label: "PANNE MECANIQUE", shifts: [null, 1, null] }, // Example shift codes
+      { code: 233, label: "PANNE ELECTRIQUE" },
       { code: 234, label: "INTERVENTION ATELIER PNEUMATIQUE" },
       { code: 235, label: "ENTRETIEN SYSTEMATIQUE" },
-      { code: 236, label: "APPOINT (HUILE, GAZOL, EAU)" }, // Note: Corrected GAZOIL to GAZOL
+      { code: 236, label: "APPOINT (HUILE, GAZOL, EAU)", shifts: [10, 18, 2] },
       { code: 237, label: "GRAISSAGE" },
       { code: 238, label: "ARRET ELEC. INSTALLATION FIXES" },
       { code: 239, label: "MANQUE CAMIONS" },
-      { code: 240, label: "MANQUE BULL" },
+      { code: 240, label: "MANQUE BULL", shifts: [11, 19, 3] },
       { code: 241, label: "MANQUE MECANICIEN" },
       { code: 242, label: "MANQUE OUTILS DE TRAVAIL" },
       { code: 243, label: "MACHINE A L'ARRET" },
-      { code: 244, label: "PANNE ENGIN DEVANT MACHINE" },
+      { code: 244, label: "PANNE ENGIN DEVANT MACHINE", shifts: [12, 20, 4] },
       { code: 442, label: "RELEVE" },
       { code: 443, label: "EXECUTION PLATE FORME" },
       { code: 444, label: "DEPLACEMENT" },
-      { code: 445, label: "TIR ET SAUTAGE" }, // Note: Corrected MISE EN SAUTAGE based on context numbers
+      { code: 445, label: "TIR ET SAUTAGE", shifts: [13, 21, 5] },
       { code: 446, label: "MOUV. DE CABLE" },
       { code: 448, label: "ARRET DECIDE" },
       { code: 449, label: "MANQUE CONDUCTEUR" },
       { code: 450, label: "BRIQUET" },
-      { code: 451, label: "PERTES (INTEMPERIES EXCLUES)" }, // Note: Corrected PISTES
+      { code: 451, label: "PERTES (INTEMPERIES EXCLUES)", shifts: [14, 22, 6] },
       { code: 452, label: "ARRETS MECA. INSTALLATIONS FIXES" },
-      { code: 453, label: "TELESCOPAGE" },
-      { code: 454, label: "EXCAVATION PURE" }, // Assigning new codes as they were duplicated
-      { code: 455, label: "TERRASSEMENT PUR" }, // Assigning new codes as they were duplicated
+      { code: 453, label: "TELESCOPAGE", shifts: [15, 23, 7] },
+      { code: 454, label: "EXCAVATION PURE" }, // Use different code if needed
+      { code: 455, label: "TERRASSEMENT PUR" }, // Use different code if needed
     ],
-    exploitation: [
-      "TOTAL",
-      "HEURES COMPTEUR",
-      "METRAGE FORE",
-      "NOMBRE DE TROUS FORES",
-      "NOMBRE DE VOYAGES",
-      "NOMBRE D'ECAPAGES", // Note: Corrected DECAPAGES
-      "TONNAGE",
-      "NOMBRE T.K.J", // Note: Corrected T.K.U
-    ],
-    personnel: ["CONDUCTEUR", "GRAISSEUR", "MATRICULES"],
-    travail: ["REPARTITION DU TEMPS DE TRAVAIL PUR", "CHANTIER", "TEMPS", "IMPUTATION", "POSTE"], // Note: Corrected PAR
-    machine: [
-      "MARQUE",
-      "N° DE SERIE",
-      "TYPE",
-      "DIAMETRE",
-      // "LIEU APPOINT", // Moved to Gasoil section
-      // "INDEX COMPTEUR", // Appears multiple times, keeping general one and specific ones
-      // "SOMME CONSOMMATION", // Seems redundant with Quantite Delivree
-      // "TRONCON", // Ambiguous, related to Tricone?
-      // "DEPOSE", // Moved to Tricone section
-      // "CAUSE DE DEPOSE", // Moved to Tricone section
-    ],
-    causes_depose: [ // Assuming these relate to Tricone
+    exploitation_codes: { // Using codes as keys
+      total: 'TOTAL', // Assuming this is a calculated field
+      heuresCompteur: 510,
+      metrageFore: 610,
+      nombreTrousFores: 620,
+      nombreVoyages: 630,
+      nombreDecapages: 640, // Corrected spelling
+      tonnage: 650,
+      nombreTKJ: 660, // Corrected T.K.U
+    },
+    causes_depose: [
       "T1 CORPS USE",
-      "T2 MOLLETTES USEES", // Note: Corrected MOLETTES
+      "T2 MOLLETTES USEES",
       "T3 MOLLETTES PERDUES",
       "T4 ROULEMENT CASSE",
       "T5 CORPS FISSURE",
       "T6 ROULEMENT COINCE",
       "T7 FILAGE ABIME",
       "T8 TRICONE PERDU",
-    ],
-     // Adding Gasoil fields based on user provided structure
-    gasoil_fields: [
-       "LIEU D'APPOINT",
-       "INDEX COMPTEUR",
-       "QUANTITE DELIVREE",
     ]
   };
 
 
-export function R0Report({ currentDate }: R0ReportProps) {
+export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
 
   const [formData, setFormData] = useState<FormData>({
+    entree: "",
+    secteur: "",
+    rapportNo: "",
+    machineEngins: "",
+    sa: "",
     unite: "",
     indexCompteur: "",
-    shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times? Needs clarification
-    ventilation: Array(data.ventilation.length).fill(""),
-    bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D manque bull?
+    shifts: ["", "", ""], // For 6H30 F, 14H30 F, 22H30 F fields
+    ventilation: data.ventilation.reduce((acc, item) => ({ ...acc, [item.code]: "" }), {}),
+    bulls: ["", "", ""], // For Manque Bull 1er D, 2eme D, 3eme D
     repartitionTravail: Array(3).fill({ chantier: "", temps: "", imputation: "" }),
-    tricone: {
-      pose: "",
-      depose: "",
-      causeDepose: "",
-    },
-    gasoil: {
-      lieuAppoint: "",
-      indexCompteur: "",
-      quantiteDelivree: "",
-    },
-    machineMarque: "",
-    machineSerie: "",
-    machineType: "",
-    machineDiametre: "",
+    exploitation: Object.keys(data.exploitation_codes).reduce((acc, key) => ({ ...acc, [key]: "" }), {}),
+    personnel: { conducteur: "", graisseur: "", matricules: "" },
+    tricone: { marque: "", serie: "", type: "", diametre: "", pose: "", depose: "", causeDepose: "", indexCompteur: "" },
+    gasoil: { lieuAppoint: "", indexCompteur: "", quantiteDelivree: "" },
   });
 
-  const handleInputChange = (
-      e: React.ChangeEvent<HTMLInputElement>,
-      section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls',
-      index?: number,
-      field?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil']
-    ) => {
-      const { name, value } = e.target;
+ const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    section: keyof FormData | 'ventilation' | 'exploitation' | 'personnel' | 'tricone' | 'gasoil' | 'repartitionTravail' | 'shifts' | 'bulls',
+    subFieldOrIndex?: string | number, // Can be ventilation code, exploitation key, personnel role, tricone/gasoil field, repartition index, shifts/bulls index
+    repartitionField?: keyof RepartitionItem
+ ) => {
+    const { name, value } = e.target;
+    const targetName = name || e.target.id; // Use id if name is not available
 
-      setFormData(prevData => {
-          let newData = { ...prevData };
+    setFormData(prevData => {
+        let newData = { ...prevData };
 
-          if (section === 'ventilation' && index !== undefined) {
-              const newVentilation = [...newData.ventilation];
-              newVentilation[index] = value;
-              newData.ventilation = newVentilation;
-          } else if (section === 'repartitionTravail' && index !== undefined && field) {
-              const newRepartition = [...newData.repartitionTravail];
-              newRepartition[index] = { ...newRepartition[index], [field]: value };
-              newData.repartitionTravail = newRepartition;
-          } else if (section === 'tricone' && field) {
-              newData.tricone = { ...newData.tricone, [field]: value };
-          } else if (section === 'gasoil' && field) {
-               newData.gasoil = { ...newData.gasoil, [field]: value };
-          } else if (section === 'shifts' && index !== undefined) {
-              const newShifts = [...newData.shifts];
-              newShifts[index] = value;
-              newData.shifts = newShifts;
-          } else if (section === 'bulls' && index !== undefined) {
-               const newBulls = [...newData.bulls];
-              newBulls[index] = value;
-              newData.bulls = newBulls;
-          }
-          else if (typeof section === 'string' && !(section in prevData) ) {
-             // Handles top-level fields like unite, indexCompteur etc. passed directly as section
-             // And machine fields
-             (newData as any)[section] = value;
-          }
-          else if (typeof section === 'string' && name in newData && typeof (newData as any)[name] === 'string') {
-             // Fallback for direct field names if previous conditions didn't match
-             (newData as any)[name] = value;
-          }
-          return newData;
-      });
-  };
+        if (section === 'ventilation' && typeof subFieldOrIndex === 'number') {
+            newData.ventilation[subFieldOrIndex] = value;
+        } else if (section === 'exploitation' && typeof subFieldOrIndex === 'string') {
+            newData.exploitation[subFieldOrIndex] = value;
+        } else if (section === 'personnel' && typeof subFieldOrIndex === 'string' && (subFieldOrIndex === 'conducteur' || subFieldOrIndex === 'graisseur' || subFieldOrIndex === 'matricules')) {
+            newData.personnel[subFieldOrIndex] = value;
+        } else if (section === 'tricone' && typeof subFieldOrIndex === 'string' && subFieldOrIndex in newData.tricone) {
+             (newData.tricone as any)[subFieldOrIndex] = value;
+        } else if (section === 'gasoil' && typeof subFieldOrIndex === 'string' && subFieldOrIndex in newData.gasoil) {
+             (newData.gasoil as any)[subFieldOrIndex] = value;
+        } else if (section === 'repartitionTravail' && typeof subFieldOrIndex === 'number' && repartitionField) {
+            const newRepartition = [...newData.repartitionTravail];
+            newRepartition[subFieldOrIndex] = { ...newRepartition[subFieldOrIndex], [repartitionField]: value };
+            newData.repartitionTravail = newRepartition;
+        } else if (section === 'shifts' && typeof subFieldOrIndex === 'number') {
+            const newShifts = [...newData.shifts];
+            newShifts[subFieldOrIndex] = value;
+            newData.shifts = newShifts;
+        } else if (section === 'bulls' && typeof subFieldOrIndex === 'number') {
+             const newBulls = [...newData.bulls];
+            newBulls[subFieldOrIndex] = value;
+            newData.bulls = newBulls;
+        } else if (typeof section === 'string' && section in newData && typeof (newData as any)[section] === 'string') {
+            // Handles top-level fields like entree, secteur, unite, etc.
+            (newData as any)[section] = value;
+        } else {
+             console.warn("Unhandled input change:", { section, subFieldOrIndex, repartitionField, targetName, value });
+        }
+
+        return newData;
+    });
+};
+
 
    const handleSelectChange = (
       value: string,
-      section: keyof FormData | 'tricone', // Specify sections where select is used
-      field: keyof FormData['tricone']
-      // Add other fields if needed
+      section: 'tricone', // Only tricone uses select for now
+      field: 'causeDepose' // Only causeDepose for now
     ) => {
-     setFormData(prevData => {
-        let newData = { ...prevData };
-        if (section === 'tricone' && field) {
-            newData.tricone = { ...newData.tricone, [field]: value };
-        }
-        // Add other select handlers here if needed
-        return newData;
-     });
+     setFormData(prevData => ({
+         ...prevData,
+         [section]: {
+             ...prevData[section],
+             [field]: value
+         }
+     }));
     };
 
 
@@ -237,62 +222,60 @@ export function R0Report({ currentDate }: R0ReportProps) {
     <Card className="bg-card text-card-foreground rounded-lg shadow-md p-6 mb-6">
       <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b mb-6">
         <CardTitle className="text-xl font-bold">
-          Rapport R0
+          Rapport Journalier Détaillé (R0)
         </CardTitle>
         <span className="text-sm text-muted-foreground">{currentDate}</span>
       </CardHeader>
 
       <CardContent className="p-0 space-y-6">
          {/* Section: Entête Info */}
-         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b pb-4">
+         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-b pb-4">
               <div>
                 <Label htmlFor="entree">Entrée</Label>
-                <Input id="entree" name="entree" placeholder="ENTREE" />
+                <Input id="entree" value={formData.entree} onChange={(e) => handleInputChange(e, 'entree')} placeholder="ENTREE" />
               </div>
               <div>
                 <Label htmlFor="secteur">Secteur</Label>
-                <Input id="secteur" name="secteur" placeholder="SECTEUR" />
+                <Input id="secteur" value={formData.secteur} onChange={(e) => handleInputChange(e, 'secteur')} placeholder="SECTEUR" />
               </div>
                <div>
                 <Label htmlFor="rapport-no">Rapport (R°)</Label>
-                <Input id="rapport-no" name="rapportNo" placeholder="RAPPORT (R°)" />
+                <Input id="rapport-no" value={formData.rapportNo} onChange={(e) => handleInputChange(e, 'rapportNo')} placeholder="N°" />
               </div>
               <div>
                 <Label htmlFor="machine-engins">Machine / Engins</Label>
-                <Input id="machine-engins" name="machineEngins" placeholder="MACHINE / ENGINS" />
+                <Input id="machine-engins" value={formData.machineEngins} onChange={(e) => handleInputChange(e, 'machineEngins')} placeholder="Nom ou Code" />
               </div>
                <div>
                 <Label htmlFor="sa">S.A</Label>
-                <Input id="sa" name="sa" placeholder="S.A" />
+                <Input id="sa" value={formData.sa} onChange={(e) => handleInputChange(e, 'sa')} placeholder="S.A" />
               </div>
             </div>
 
 
-        {/* Section: Unite & Index */}
+        {/* Section: Unite & Index Compteur Global */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="unite">Unité</Label>
             <Input
               id="unite"
-              name="unite"
               value={formData.unite}
               onChange={(e) => handleInputChange(e, "unite")}
             />
           </div>
           <div>
-            <Label htmlFor="indexCompteur">Index Compteur</Label>
+            <Label htmlFor="indexCompteur">Index Compteur (Global)</Label>
             <Input
               id="indexCompteur"
-              name="indexCompteur"
               value={formData.indexCompteur}
               onChange={(e) => handleInputChange(e, "indexCompteur")}
             />
           </div>
         </div>
 
-        {/* Section: Poste Selection & Shifts */}
+         {/* Section: Poste Selection & Shift Times */}
         <div className="space-y-2">
-           <Label className="text-foreground">Poste</Label>
+           <Label className="text-foreground">Poste Actuel</Label>
             <RadioGroup
               value={selectedPoste} // Controlled component
               onValueChange={(value: Poste) => setSelectedPoste(value)}
@@ -300,28 +283,47 @@ export function R0Report({ currentDate }: R0ReportProps) {
             >
               {POSTE_ORDER.map((poste) => ( // Use defined order
                 <div key={poste} className="flex items-center space-x-2 mb-2">
-                  <RadioGroupItem value={poste} id={`r0-poste-${poste}`} />
-                  <Label htmlFor={`r0-poste-${poste}`} className="font-normal text-foreground">
+                  <RadioGroupItem value={poste} id={`another-poste-${poste}`} />
+                  <Label htmlFor={`another-poste-${poste}`} className="font-normal text-foreground">
                     {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
                   </Label>
                 </div>
               ))}
             </RadioGroup>
 
-            {/* Shift Input Fields (Example - adjust based on actual meaning) */}
+           {/* Shift Input Fields (6H30 F, 14H30 F, 22H30 F) */}
            <div className="grid grid-cols-3 gap-4 pt-2">
-                {POSTE_ORDER.map((poste, index) => (
-                  <div key={poste}>
-                    <Label htmlFor={`shift-${poste}`} className="text-muted-foreground text-xs">{`${poste} D/F`}</Label>
+                {/* Assuming these correspond to the END times of the postes */}
+                 <div >
+                    <Label htmlFor={`shift-1`} className="text-muted-foreground text-xs">Fin 1er (14H30 F)</Label>
                      <Input
-                      id={`shift-${poste}`}
+                      id={`shift-1`}
                       type="text"
-                      value={formData.shifts[index]} // Assuming index matches POSTE_ORDER
-                      onChange={(e) => handleInputChange(e, "shifts", index)}
-                      placeholder={POSTE_TIMES[poste]} // Use times as placeholder
+                      value={formData.shifts[1]} // Index 1 for 2eme shift end?
+                      onChange={(e) => handleInputChange(e, "shifts", 1)}
+                      placeholder="Valeur?"
                     />
                   </div>
-                ))}
+                  <div >
+                    <Label htmlFor={`shift-2`} className="text-muted-foreground text-xs">Fin 2ème (22H30 F)</Label>
+                     <Input
+                      id={`shift-2`}
+                      type="text"
+                      value={formData.shifts[2]} // Index 2 for 3eme shift end?
+                      onChange={(e) => handleInputChange(e, "shifts", 2)}
+                      placeholder="Valeur?"
+                    />
+                  </div>
+                 <div >
+                    <Label htmlFor={`shift-0`} className="text-muted-foreground text-xs">Fin 3ème (06H30 F)</Label>
+                     <Input
+                      id={`shift-0`}
+                      type="text"
+                      value={formData.shifts[0]} // Index 0 for 1er shift end?
+                      onChange={(e) => handleInputChange(e, "shifts", 0)}
+                       placeholder="Valeur?"
+                    />
+                  </div>
             </div>
         </div>
 
@@ -333,24 +335,30 @@ export function R0Report({ currentDate }: R0ReportProps) {
                   <TableHeader className="bg-muted/50">
                     <TableRow>
                       <TableHead className="w-[80px]">Code</TableHead>
-                      <TableHead>Nature de l'Arrêt (Extérieurs, Matériel, Exploitation)</TableHead>
-                      {/* Add columns for 1er, 2eme, 3eme shifts if needed */}
+                      <TableHead>Nature de l'Arrêt</TableHead>
+                      {/* Optional Shift Code columns */}
+                       {/* <TableHead className="w-[50px] text-center text-xs">1er D</TableHead>
+                       <TableHead className="w-[50px] text-center text-xs">2eme D</TableHead>
+                       <TableHead className="w-[50px] text-center text-xs">3eme D</TableHead> */}
                       <TableHead className="text-right w-[150px]">Durée Totale</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.ventilation.map((item, index) => (
+                    {data.ventilation.map((item) => (
                       <TableRow key={item.code} className="hover:bg-muted/50">
                         <TableCell className="font-medium">{item.code}</TableCell>
                         <TableCell>{item.label}</TableCell>
-                        {/* Add cells for shift-specific durations if needed */}
+                         {/* Optional Shift Code columns */}
+                        {/* <TableCell className="text-center text-xs text-muted-foreground">{item.shifts?.[0] ?? ''}</TableCell>
+                        <TableCell className="text-center text-xs text-muted-foreground">{item.shifts?.[1] ?? ''}</TableCell>
+                        <TableCell className="text-center text-xs text-muted-foreground">{item.shifts?.[2] ?? ''}</TableCell> */}
                         <TableCell className="text-right">
                           <Input
                             type="text"
-                            className="h-8 text-sm text-right w-full"
+                            className="h-8 text-sm text-right w-full min-w-[100px]"
                             placeholder="ex: 1h 30"
-                            value={formData.ventilation[index]}
-                            onChange={(e) => handleInputChange(e, "ventilation", index)}
+                            value={formData.ventilation[item.code]}
+                            onChange={(e) => handleInputChange(e, "ventilation", item.code)}
                           />
                         </TableCell>
                       </TableRow>
@@ -358,6 +366,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                     {/* Add Total Row */}
                      <TableRow className="bg-muted/80 font-semibold">
                          <TableCell colSpan={2}>TOTAL Arrêts</TableCell>
+                         {/* <TableCell colSpan={3}></TableCell> Optional Shift Code columns */}
                          <TableCell className="text-right">
                              <Input type="text" className="h-8 text-sm text-right w-full bg-transparent font-semibold" readOnly value={"Calculated Total"} /> {/* Replace with calculated total */}
                          </TableCell>
@@ -371,16 +380,20 @@ export function R0Report({ currentDate }: R0ReportProps) {
          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <h3 className="font-semibold text-lg text-foreground mb-4">Données d'Exploitation</h3>
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {data.exploitation.map((item) => (
-                         <div key={item} className="space-y-1">
-                            <Label htmlFor={`expl-${item.toLowerCase().replace(/\s/g, '-')}`} className="text-sm text-muted-foreground">
-                                {item}
+                    {Object.entries(data.exploitation_codes).map(([key, code]) => (
+                         <div key={key} className="space-y-1">
+                            <Label htmlFor={`expl-${key}`} className="text-sm text-muted-foreground">
+                                {typeof code === 'string' ? code : `${data.exploitation_codes[key as keyof typeof data.exploitation_codes]} - ${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}` }
+                                 {typeof code === 'number' && <span className="text-xs"> ({code})</span>}
                             </Label>
                             <Input
-                                id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
+                                id={`expl-${key}`}
                                 type="text"
                                 className="h-9"
-                                // Add state management if these need to be dynamic
+                                value={formData.exploitation[key]}
+                                onChange={(e) => handleInputChange(e, 'exploitation', key)}
+                                disabled={key === 'total'} // Disable total if calculated
+                                placeholder={key === 'total' ? 'Calculé' : ''}
                             />
                          </div>
                     ))}
@@ -390,15 +403,17 @@ export function R0Report({ currentDate }: R0ReportProps) {
 
         {/* Section: Manque Bull */}
         <div className="space-y-2">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Manque Bull</h3>
+          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Manque Bull (Durée)</h3>
           <div className="grid grid-cols-3 gap-4">
+             {/* Assuming bulls indices correspond to POSTE_ORDER */}
             {POSTE_ORDER.map((poste, index) => (
               <div key={poste}>
                 <Label htmlFor={`bull-${poste}`} className="text-muted-foreground text-xs">{`${poste} D`}</Label>
                 <Input
                   id={`bull-${poste}`}
                   type="text"
-                  value={formData.bulls[index]} // Assuming index matches POSTE_ORDER
+                   placeholder="ex: 0h 45"
+                  value={formData.bulls[index]}
                   onChange={(e) => handleInputChange(e, "bulls", index)}
                 />
               </div>
@@ -409,7 +424,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
         {/* Section: Répartition du Temps de Travail Pur */}
         <div className="space-y-4">
           <h3 className="font-semibold text-lg text-foreground">Répartition du Temps de Travail Pur</h3>
-            {POSTE_ORDER.map((poste, index) => (
+            {POSTE_ORDER.map((poste, index) => ( // Ensure index matches the intended poste data
                 <div key={poste} className="p-4 border rounded-lg space-y-3">
                      <h4 className="font-medium text-foreground">{poste} Poste</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -450,17 +465,31 @@ export function R0Report({ currentDate }: R0ReportProps) {
          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <h3 className="font-semibold text-lg text-foreground mb-4">Personnel</h3>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   {data.personnel.map(role => (
-                        <div key={role} className="space-y-1">
-                            <Label htmlFor={`personnel-${role.toLowerCase()}`}>{role}</Label>
-                            <Input
-                                id={`personnel-${role.toLowerCase()}`}
-                                type="text"
-                                className="h-9"
-                                // Add state management
-                            />
-                        </div>
-                   ))}
+                   <div>
+                        <Label htmlFor="personnel-conducteur">Conducteur</Label>
+                        <Input
+                            id="personnel-conducteur"
+                            value={formData.personnel.conducteur}
+                            onChange={(e) => handleInputChange(e, 'personnel', 'conducteur')}
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="personnel-graisseur">Graisseur</Label>
+                        <Input
+                            id="personnel-graisseur"
+                             value={formData.personnel.graisseur}
+                            onChange={(e) => handleInputChange(e, 'personnel', 'graisseur')}
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="personnel-matricules">Matricules</Label>
+                        <Input
+                            id="personnel-matricules"
+                             value={formData.personnel.matricules}
+                            onChange={(e) => handleInputChange(e, 'personnel', 'matricules')}
+                             placeholder="Séparés par des virgules"
+                        />
+                    </div>
                </div>
          </div>
 
@@ -475,19 +504,19 @@ export function R0Report({ currentDate }: R0ReportProps) {
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                      <div>
                         <Label htmlFor="tricone-marque">Marque</Label>
-                        <Input id="tricone-marque" name="machineMarque" value={formData.machineMarque} onChange={(e) => handleInputChange(e, 'machineMarque')}/>
+                        <Input id="tricone-marque" value={formData.tricone.marque} onChange={(e) => handleInputChange(e, 'tricone', 'marque')}/>
                      </div>
                      <div>
                         <Label htmlFor="tricone-serie">N° de Série</Label>
-                        <Input id="tricone-serie" name="machineSerie" value={formData.machineSerie} onChange={(e) => handleInputChange(e, 'machineSerie')}/>
+                        <Input id="tricone-serie" value={formData.tricone.serie} onChange={(e) => handleInputChange(e, 'tricone', 'serie')}/>
                      </div>
                      <div>
                         <Label htmlFor="tricone-type">Type</Label>
-                        <Input id="tricone-type" name="machineType" value={formData.machineType} onChange={(e) => handleInputChange(e, 'machineType')}/>
+                        <Input id="tricone-type" value={formData.tricone.type} onChange={(e) => handleInputChange(e, 'tricone', 'type')}/>
                      </div>
                      <div>
                         <Label htmlFor="tricone-diametre">Diamètre</Label>
-                        <Input id="tricone-diametre" name="machineDiametre" value={formData.machineDiametre} onChange={(e) => handleInputChange(e, 'machineDiametre')}/>
+                        <Input id="tricone-diametre" value={formData.tricone.diametre} onChange={(e) => handleInputChange(e, 'tricone', 'diametre')}/>
                      </div>
                  </div>
 
@@ -497,20 +526,16 @@ export function R0Report({ currentDate }: R0ReportProps) {
                         <Label htmlFor="tricone-pose">Posé (N°)</Label>
                         <Input
                             id="tricone-pose"
-                            type="text"
-                            name="pose"
                             value={formData.tricone.pose}
-                            onChange={(e) => handleInputChange(e, 'tricone', undefined, 'pose')}
+                            onChange={(e) => handleInputChange(e, 'tricone', 'pose')}
                         />
                     </div>
                     <div>
                         <Label htmlFor="tricone-depose">Déposé (N°)</Label>
                         <Input
                             id="tricone-depose"
-                            type="text"
-                            name="depose"
                             value={formData.tricone.depose}
-                            onChange={(e) => handleInputChange(e, 'tricone', undefined, 'depose')}
+                            onChange={(e) => handleInputChange(e, 'tricone', 'depose')}
                         />
                     </div>
                      <div>
@@ -532,7 +557,9 @@ export function R0Report({ currentDate }: R0ReportProps) {
                 </div>
                  <div>
                     <Label htmlFor="tricone-index-compteur">Index Compteur (Tricone)</Label>
-                    <Input id="tricone-index-compteur" type="text" placeholder="Index au moment de la dépose?" />
+                    <Input id="tricone-index-compteur" type="text"
+                     value={formData.tricone.indexCompteur} onChange={(e) => handleInputChange(e, 'tricone', 'indexCompteur')}
+                    placeholder="Index au moment de la dépose?" />
                 </div>
            </div>
 
@@ -544,30 +571,25 @@ export function R0Report({ currentDate }: R0ReportProps) {
                         <Label htmlFor="gasoil-lieu">Lieu d'Appoint</Label>
                         <Input
                             id="gasoil-lieu"
-                            type="text"
-                            name="lieuAppoint"
                             value={formData.gasoil.lieuAppoint}
-                            onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'lieuAppoint')}
+                            onChange={(e) => handleInputChange(e, 'gasoil', 'lieuAppoint')}
                         />
                     </div>
                     <div>
                         <Label htmlFor="gasoil-index">Index Compteur (Gasoil)</Label>
                         <Input
                             id="gasoil-index"
-                            type="text"
-                            name="indexCompteur"
                             value={formData.gasoil.indexCompteur}
-                             onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'indexCompteur')}
+                             onChange={(e) => handleInputChange(e, 'gasoil', 'indexCompteur')}
                         />
                     </div>
                     <div>
                         <Label htmlFor="gasoil-quantite">Quantité Délivrée</Label>
                         <Input
                             id="gasoil-quantite"
-                            type="text"
-                             name="quantiteDelivree"
                             value={formData.gasoil.quantiteDelivree}
-                            onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
+                            onChange={(e) => handleInputChange(e, 'gasoil', 'quantiteDelivree')}
+                             placeholder="en Litres"
                         />
                     </div>
                 </div>
