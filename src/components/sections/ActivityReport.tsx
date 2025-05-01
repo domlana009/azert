@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
@@ -70,6 +71,8 @@ function validateAndParseCounterValue(value: string): number | null {
     return isNaN(parsed) ? null : parsed; // Return null if parsing failed
 }
 
+// Define total minutes for a 24-hour period
+const TOTAL_PERIOD_MINUTES = 24 * 60; // Changed from 8 * 60
 
 // Helper function to calculate total duration in minutes from counters, considering validation
 function calculateTotalCounterMinutes(counters: Array<{ start: string; end: string; error?: string }>): number {
@@ -146,7 +149,7 @@ interface StockEntry {
 
 
 export function ActivityReport({ currentDate }: ActivityReportProps) {
-  const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
+
 
   // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
   const [stops, setStops] = useState<Stop[]>([
@@ -174,7 +177,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
 
   const [totalDowntime, setTotalDowntime] = useState(0);
-  const [operatingTime, setOperatingTime] = useState(TOTAL_SHIFT_MINUTES);
+  const [operatingTime, setOperatingTime] = useState(TOTAL_PERIOD_MINUTES); // Use 24h base
   // State for total counter durations
   const [totalVibratorMinutes, setTotalVibratorMinutes] = useState(0);
   const [totalLiaisonMinutes, setTotalLiaisonMinutes] = useState(0);
@@ -188,10 +191,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     const calculatedDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
     setTotalDowntime(calculatedDowntime);
 
-    const calculatedOperatingTime = TOTAL_SHIFT_MINUTES - calculatedDowntime;
+    const calculatedOperatingTime = TOTAL_PERIOD_MINUTES - calculatedDowntime; // Use 24h base
     setOperatingTime(calculatedOperatingTime >= 0 ? calculatedOperatingTime : 0); // Ensure non-negative
 
-  }, [stops, TOTAL_SHIFT_MINUTES]);
+  }, [stops]); // Removed TOTAL_PERIOD_MINUTES dependency as it's constant
 
   // Calculate total counter durations and check for errors whenever counters change
   useEffect(() => {
@@ -203,14 +206,14 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     // Check if ANY counter has an error
     setHasVibratorErrors(vibratorCounters.some(c => !!c.error));
 
-    // Basic check: Total counter duration should not exceed total possible operating time
-    if (vibratorTotal > TOTAL_SHIFT_MINUTES) { // Or compare against operatingTime if more relevant
-        console.warn("Total vibreur duration exceeds shift time.");
+    // Basic check: Total counter duration should not exceed total possible operating time (24 hours)
+    if (vibratorTotal > TOTAL_PERIOD_MINUTES) {
+        console.warn("Total vibreur duration exceeds 24h period.");
         // Potentially set a general error flag or specific counter errors
-        // setHasVibratorErrors(true); // Ensure general error is shown
+        // setHasVibratorErrors(true); // Ensure general error is shown if not already set
     }
 
-  }, [vibratorCounters, TOTAL_SHIFT_MINUTES]); // Added TOTAL_SHIFT_MINUTES dependency
+  }, [vibratorCounters]); // Removed TOTAL_PERIOD_MINUTES dependency
 
   useEffect(() => {
       // Calculate total duration based on valid entries
@@ -221,12 +224,12 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     // Check if ANY counter has an error
     setHasLiaisonErrors(liaisonCounters.some(c => !!c.error));
 
-    // Basic check: Total counter duration should not exceed total possible operating time
-    if (liaisonTotal > TOTAL_SHIFT_MINUTES) { // Or compare against operatingTime
-        console.warn("Total liaison duration exceeds shift time.");
-        // setHasLiaisonErrors(true);
+    // Basic check: Total counter duration should not exceed total possible operating time (24 hours)
+    if (liaisonTotal > TOTAL_PERIOD_MINUTES) {
+        console.warn("Total liaison duration exceeds 24h period.");
+        // setHasLiaisonErrors(true); // Ensure general error is shown if not already set
     }
-  }, [liaisonCounters, TOTAL_SHIFT_MINUTES]); // Added TOTAL_SHIFT_MINUTES dependency
+  }, [liaisonCounters]); // Removed TOTAL_PERIOD_MINUTES dependency
 
 
   const addStop = () => {
@@ -272,7 +275,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops(stops.map(stop => stop.id === id ? { ...stop, [field]: value } : stop));
  };
 
- // Function to validate a single counter entry
+ // Function to validate a single counter entry - Updated for 24h
  const validateCounterEntry = (startStr: string, endStr: string): string | undefined => {
     const startVal = validateAndParseCounterValue(startStr);
     const endVal = validateAndParseCounterValue(endStr);
@@ -286,11 +289,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
         return "Fin < Début.";
     }
 
-    // Check duration against total possible shift time (8 hours = 480 minutes)
+    // Check duration against total possible period time (24 hours)
     if (startVal !== null && endVal !== null) {
         const durationHours = endVal - startVal;
-        if (durationHours * 60 > TOTAL_SHIFT_MINUTES) {
-            return `Durée > ${formatMinutesToHoursMinutes(TOTAL_SHIFT_MINUTES)}.`;
+        if (durationHours * 60 > TOTAL_PERIOD_MINUTES) { // Compare against 24h in minutes
+            return `Durée > ${formatMinutesToHoursMinutes(TOTAL_PERIOD_MINUTES)}.`; // Update error message
         }
     }
 
@@ -375,14 +378,14 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     const finalVibratorTotal = calculateTotalCounterMinutes(finalVibratorCounters.filter(c => !c.error));
     const finalLiaisonTotal = calculateTotalCounterMinutes(finalLiaisonCounters.filter(c => !c.error));
 
-    // Final check against total shift time
-    if (finalVibratorTotal > TOTAL_SHIFT_MINUTES) {
-        console.error("Validation failed: Total vibreur duration exceeds shift time.");
+    // Final check against total period time (24h)
+    if (finalVibratorTotal > TOTAL_PERIOD_MINUTES) {
+        console.error("Validation failed: Total vibreur duration exceeds 24h period.");
         vibratorValidationFailed = true;
         // Optionally set a general error state here if not already handled by individual counter errors
     }
-     if (finalLiaisonTotal > TOTAL_SHIFT_MINUTES) {
-        console.error("Validation failed: Total liaison duration exceeds shift time.");
+     if (finalLiaisonTotal > TOTAL_PERIOD_MINUTES) {
+        console.error("Validation failed: Total liaison duration exceeds 24h period.");
         liaisonValidationFailed = true;
     }
 
@@ -506,7 +509,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
                 {/* Operating Time Display */}
                 <div className="p-4 border rounded-lg bg-muted/30">
-                    <h3 className="font-semibold text-lg text-foreground mb-2">Temps de Fonctionnement (8h - Arrêts)</h3>
+                    {/* Updated Label */}
+                    <h3 className="font-semibold text-lg text-foreground mb-2">Temps de Fonctionnement (24h - Arrêts)</h3>
                     <div className="space-y-1">
                         <Label htmlFor="total-operating-tnr" className="text-sm text-muted-foreground">
                             Temps de Fonctionnement Estimé
@@ -529,7 +533,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs vibreurs. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 8h).
+                                Erreur(s) dans les compteurs vibreurs. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -623,7 +627,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs liaison. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 8h).
+                                Erreur(s) dans les compteurs liaison. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
