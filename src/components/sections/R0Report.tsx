@@ -56,7 +56,7 @@ interface FormData {
   shifts: string[]; // Assuming shifts corresponds to postes 1er, 2eme, 3eme
   ventilation: { code: number; label: string; duree: string }[]; // Updated ventilation structure
   exploitation: Record<string, string>; // Use a record for exploitation data
-  bulls: string[]; // Assuming bulls corresponds to postes 1er, 2eme, 3eme
+  bulls: string[]; // Corresponds to 1er, 2eme, 3eme D manque bull - NOW USED FOR DISPLAYING GROSS HOURS
   repartitionTravail: RepartitionItem[];
   tricone: {
     pose: string;
@@ -202,8 +202,11 @@ function formatHoursToHoursMinutes(totalHours: number): string {
 
 export function R0Report({ currentDate }: R0ReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+   // State to hold calculated gross hours per poste and total
    const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
+   // State to hold total stop duration in minutes
    const [totalStopMinutes, setTotalStopMinutes] = useState(0);
+   // State to hold net working hours (total gross hours - total stop hours)
    const [netWorkingHours, setNetWorkingHours] = useState(0);
 
   const [formData, setFormData] = useState<FormData>({
@@ -217,7 +220,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times
     ventilation: ventilationData.map(item => ({ ...item, duree: "" })), // Initialize duration for ventilation items
     exploitation: exploitationLabels.reduce((acc, label) => ({ ...acc, [label]: "" }), {}), // Initialize exploitation fields
-    bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D manque bull
+    bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme - NOW DISPLAYING GROSS HOURS
     repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
     tricone: {
       pose: "",
@@ -280,11 +283,13 @@ export function R0Report({ currentDate }: R0ReportProps) {
               const newShifts = [...newData.shifts];
               newShifts[indexOrField] = value;
               newData.shifts = newShifts;
-          } else if (section === 'bulls' && typeof indexOrField === 'number') {
-               const newBulls = [...newData.bulls];
-              newBulls[indexOrField] = value;
-              newData.bulls = newBulls;
           }
+          // NOTE: Removed bulls section handler as it's now display-only
+          // else if (section === 'bulls' && typeof indexOrField === 'number') {
+          //      const newBulls = [...newData.bulls];
+          //     newBulls[indexOrField] = value;
+          //     newData.bulls = newBulls;
+          // }
           // Handle exploitation fields
           else if (section === 'exploitation' && typeof indexOrField === 'string' && indexOrField in newData.exploitation) {
               newData.exploitation = { ...newData.exploitation, [indexOrField]: value };
@@ -334,6 +339,13 @@ export function R0Report({ currentDate }: R0ReportProps) {
         });
         const totalHours = posteHours.reduce((sum, hours) => sum + hours, 0);
         setCalculatedHours({ poste: posteHours, total: totalHours });
+
+        // Update the 'bulls' array in formData with formatted gross hours for display
+        const formattedGrossHours = posteHours.map(hours => formatHoursToHoursMinutes(hours));
+        setFormData(prevData => ({
+            ...prevData,
+            bulls: formattedGrossHours // Use bulls to display formatted gross hours
+        }));
     };
 
     // Function to calculate total stop duration
@@ -374,7 +386,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                 "HEURES COMPTEUR": formatHoursToHoursMinutes(netWorkingHours) // Format the net hours
             }
         }));
-    }, [calculatedHours.total, totalStopMinutes, netWorkingHours]); // Depend on netWorkingHours to update the form field
+    }, [calculatedHours.total, totalStopMinutes]); // Removed netWorkingHours dependency to prevent loop
 
 
   return (
@@ -454,12 +466,12 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             />
                          </div>
                           <div className="text-xs text-muted-foreground pt-1">
-                             Heures: {calculatedHours.poste[index].toFixed(2)}h
+                             Heures Brutes: {formatHoursToHoursMinutes(calculatedHours.poste[index])}
                          </div>
                     </div>
                 ))}
                 <div className="col-span-3 mt-2 text-right font-semibold">
-                    Total Heures Brutes (24h): {calculatedHours.total.toFixed(2)}h
+                    Total Heures Brutes (24h): {formatHoursToHoursMinutes(calculatedHours.total)}
                  </div>
            </div>
         </div>
@@ -559,7 +571,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             <Input
                                 id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
                                 type="text"
-                                className="h-8"
+                                className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium' : ''}`}
                                 value={formData.exploitation[item]}
                                 onChange={(e) => handleInputChange(e, 'exploitation', item)}
                                 readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
@@ -574,25 +586,25 @@ export function R0Report({ currentDate }: R0ReportProps) {
          </div>
 
 
-        {/* Section: Manque Bull */}
-        <div className="space-y-2">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Manque Bull (Durée)</h3>
+        {/* Section: Heures Brutes par Poste (Replacing Manque Bull) */}
+        <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Heures Brutes par Poste (Calculé)</h3>
           <div className="grid grid-cols-3 gap-4">
             {POSTE_ORDER.map((poste, index) => (
               <div key={poste}>
-                <Label htmlFor={`bull-${poste}`} className="text-muted-foreground text-xs">{`${poste} Poste`}</Label>
+                <Label htmlFor={`gross-hours-${poste}`} className="text-muted-foreground text-xs">{`${poste} Poste`}</Label>
                 <Input
-                  id={`bull-${poste}`}
+                  id={`gross-hours-${poste}`}
                   type="text"
-                  placeholder="ex: 45m"
-                  value={formData.bulls[index]} // Assuming index matches POSTE_ORDER
-                  onChange={(e) => handleInputChange(e, "bulls", index)}
-                   className="h-8"
+                  value={formData.bulls[index]} // Display formatted gross hours from bulls array
+                  readOnly
+                  className="h-8 bg-muted font-medium" // Style as read-only
                 />
               </div>
             ))}
           </div>
         </div>
+
 
         {/* Section: Répartition du Temps de Travail Pur */}
         <div className="space-y-4">
@@ -791,3 +803,4 @@ export function R0Report({ currentDate }: R0ReportProps) {
     </Card>
   );
 }
+
