@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Import useEffect
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,12 @@ interface RepartitionItem {
   imputation: string;
 }
 
+// Define type for Index Compteur per Poste
+interface IndexCompteurPoste {
+    debut: string;
+    fin: string;
+}
+
 interface FormData {
   entree: string;
   secteur: string;
@@ -46,7 +52,8 @@ interface FormData {
   machineEngins: string;
   sa: string;
   unite: string;
-  indexCompteur: string;
+  // indexCompteur: string; // Removed global index compteur
+  indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste
   shifts: string[]; // Assuming shifts corresponds to postes 1er, 2eme, 3eme
   ventilation: string[];
   bulls: string[]; // Assuming bulls corresponds to postes 1er, 2eme, 3eme
@@ -58,7 +65,7 @@ interface FormData {
   };
   gasoil: {
     lieuAppoint: string;
-    indexCompteur: string;
+    indexCompteur: string; // Specific index for gasoil
     quantiteDelivree: string;
   };
   machineMarque: string;
@@ -144,7 +151,7 @@ interface FormData {
      // Adding Gasoil fields based on user provided structure
     gasoil_fields: [
        "LIEU D'APPOINT",
-       "INDEX COMPTEUR",
+       "INDEX COMPTEUR", // Specific for Gasoil
        "QUANTITE DELIVREE",
     ]
   };
@@ -152,6 +159,7 @@ interface FormData {
 
 export function R0Report({ currentDate }: R0ReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+   const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
 
   const [formData, setFormData] = useState<FormData>({
     entree: "",
@@ -160,7 +168,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
     machineEngins: "",
     sa: "",
     unite: "",
-    indexCompteur: "",
+    indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times? Needs clarification
     ventilation: Array(data.ventilation.length).fill(""),
     bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D manque bull?
@@ -172,7 +180,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
     },
     gasoil: {
       lieuAppoint: "",
-      indexCompteur: "",
+      indexCompteur: "", // Gasoil specific index
       quantiteDelivree: "",
     },
     machineMarque: "",
@@ -183,9 +191,9 @@ export function R0Report({ currentDate }: R0ReportProps) {
 
   const handleInputChange = (
       e: React.ChangeEvent<HTMLInputElement>,
-      section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls',
-      index?: number,
-      field?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil']
+      section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls' | 'indexCompteurs', // Added indexCompteurs
+      indexOrField?: number | string, // Can be index or field name
+      fieldOrNestedField?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil'] | keyof IndexCompteurPoste // Updated type
     ) => {
       const { name, value } = e.target;
        // Use name attribute for top-level fields if available and section matches a key in FormData
@@ -194,29 +202,33 @@ export function R0Report({ currentDate }: R0ReportProps) {
       setFormData(prevData => {
           let newData = { ...prevData };
 
-          if (section === 'ventilation' && index !== undefined) {
+          if (section === 'ventilation' && typeof indexOrField === 'number') {
               const newVentilation = [...newData.ventilation];
-              newVentilation[index] = value;
+              newVentilation[indexOrField] = value;
               newData.ventilation = newVentilation;
-          } else if (section === 'repartitionTravail' && index !== undefined && field) {
-              // Ensure the array exists and the index is valid
-              if (newData.repartitionTravail && newData.repartitionTravail[index]) {
+          } else if (section === 'repartitionTravail' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.repartitionTravail[0]) {
+              if (newData.repartitionTravail && newData.repartitionTravail[indexOrField]) {
                   const newRepartition = [...newData.repartitionTravail];
-                  // Ensure the item at the index is an object before spreading
-                  newRepartition[index] = { ...newRepartition[index], [field]: value };
+                  newRepartition[indexOrField] = { ...newRepartition[indexOrField], [fieldOrNestedField]: value };
                   newData.repartitionTravail = newRepartition;
               }
-          } else if (section === 'tricone' && field && typeof field === 'string' && field in newData.tricone) {
-              newData.tricone = { ...newData.tricone, [field as keyof typeof newData.tricone]: value };
-          } else if (section === 'gasoil' && field && typeof field === 'string' && field in newData.gasoil) {
-               newData.gasoil = { ...newData.gasoil, [field as keyof typeof newData.gasoil]: value };
-          } else if (section === 'shifts' && index !== undefined) {
+          } else if (section === 'indexCompteurs' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.indexCompteurs[0]) { // Handle indexCompteurs
+             if (newData.indexCompteurs && newData.indexCompteurs[indexOrField]) {
+                const newIndexCompteurs = [...newData.indexCompteurs];
+                newIndexCompteurs[indexOrField] = { ...newIndexCompteurs[indexOrField], [fieldOrNestedField as keyof IndexCompteurPoste]: value };
+                newData.indexCompteurs = newIndexCompteurs;
+            }
+          } else if (section === 'tricone' && fieldOrNestedField && typeof fieldOrNestedField === 'string' && fieldOrNestedField in newData.tricone) {
+              newData.tricone = { ...newData.tricone, [fieldOrNestedField as keyof typeof newData.tricone]: value };
+          } else if (section === 'gasoil' && fieldOrNestedField && typeof fieldOrNestedField === 'string' && fieldOrNestedField in newData.gasoil) {
+               newData.gasoil = { ...newData.gasoil, [fieldOrNestedField as keyof typeof newData.gasoil]: value };
+          } else if (section === 'shifts' && typeof indexOrField === 'number') {
               const newShifts = [...newData.shifts];
-              newShifts[index] = value;
+              newShifts[indexOrField] = value;
               newData.shifts = newShifts;
-          } else if (section === 'bulls' && index !== undefined) {
+          } else if (section === 'bulls' && typeof indexOrField === 'number') {
                const newBulls = [...newData.bulls];
-              newBulls[index] = value;
+              newBulls[indexOrField] = value;
               newData.bulls = newBulls;
           }
           // Handle top-level string fields directly
@@ -224,7 +236,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
              (newData as any)[targetName] = value;
           }
           else {
-             console.warn("Unhandled input change:", { section, index, field, name, value });
+             console.warn("Unhandled input change:", { section, indexOrField, fieldOrNestedField, name, value });
           }
           return newData;
       });
@@ -245,6 +257,25 @@ export function R0Report({ currentDate }: R0ReportProps) {
         return newData;
      });
     };
+
+    // Function to calculate working hours
+    const calculateWorkingHours = () => {
+        const posteHours = formData.indexCompteurs.map(compteur => {
+            const debut = parseFloat(compteur.debut);
+            const fin = parseFloat(compteur.fin);
+            if (!isNaN(debut) && !isNaN(fin) && fin >= debut) {
+                return fin - debut;
+            }
+            return 0;
+        });
+        const totalHours = posteHours.reduce((sum, hours) => sum + hours, 0);
+        setCalculatedHours({ poste: posteHours, total: totalHours });
+    };
+
+    // Recalculate on index compteur change
+    useEffect(() => {
+        calculateWorkingHours();
+    }, [formData.indexCompteurs]);
 
 
   return (
@@ -282,9 +313,9 @@ export function R0Report({ currentDate }: R0ReportProps) {
             </div>
 
 
-        {/* Section: Unite & Index */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+        {/* Section: Unite & Index Compteur per Poste */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-1">
             <Label htmlFor="unite">Unité</Label>
             <Input
               id="unite"
@@ -293,20 +324,49 @@ export function R0Report({ currentDate }: R0ReportProps) {
               onChange={(e) => handleInputChange(e, "unite")}
             />
           </div>
-          <div>
-            <Label htmlFor="indexCompteur">Index Compteur</Label>
-            <Input
-              id="indexCompteur"
-              name="indexCompteur"
-              value={formData.indexCompteur}
-              onChange={(e) => handleInputChange(e, "indexCompteur")}
-            />
-          </div>
+           {/* Index Compteur per Poste */}
+           <div className="md:col-span-3 grid grid-cols-3 gap-4 border p-4 rounded-md bg-muted/30">
+                {POSTE_ORDER.map((poste, index) => (
+                    <div key={`index-${poste}`} className="space-y-2">
+                         <Label className="font-medium">{poste} Poste</Label>
+                         <div>
+                            <Label htmlFor={`index-debut-${poste}`} className="text-xs text-muted-foreground">Début</Label>
+                            <Input
+                                id={`index-debut-${poste}`}
+                                type="number"
+                                step="0.01"
+                                value={formData.indexCompteurs[index]?.debut || ''}
+                                onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'debut')}
+                                placeholder="Index début"
+                                className="h-8"
+                            />
+                         </div>
+                         <div>
+                             <Label htmlFor={`index-fin-${poste}`} className="text-xs text-muted-foreground">Fin</Label>
+                            <Input
+                                id={`index-fin-${poste}`}
+                                type="number"
+                                step="0.01"
+                                value={formData.indexCompteurs[index]?.fin || ''}
+                                onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'fin')}
+                                placeholder="Index fin"
+                                className="h-8"
+                            />
+                         </div>
+                          <div className="text-xs text-muted-foreground pt-1">
+                             Heures: {calculatedHours.poste[index].toFixed(2)}h
+                         </div>
+                    </div>
+                ))}
+                <div className="col-span-3 mt-2 text-right font-semibold">
+                    Total Heures (24h): {calculatedHours.total.toFixed(2)}h
+                 </div>
+           </div>
         </div>
 
         {/* Section: Poste Selection & Shifts */}
         <div className="space-y-2">
-           <Label className="text-foreground">Poste</Label>
+           <Label className="text-foreground">Poste Actuel</Label>
             <RadioGroup
               value={selectedPoste} // Controlled component
               onValueChange={(value: Poste) => setSelectedPoste(value)}
@@ -582,6 +642,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                              name="quantiteDelivree"
                             value={formData.gasoil.quantiteDelivree}
                             onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
+                             placeholder="en Litres" // Added placeholder
                         />
                     </div>
                 </div>
