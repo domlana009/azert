@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,11 @@ interface RepartitionItem {
   imputation: string;
 }
 
+interface IndexCompteurPoste {
+    debut: string;
+    fin: string;
+}
+
 interface FormData {
   entree: string;
   secteur: string;
@@ -45,7 +50,8 @@ interface FormData {
   machineEngins: string;
   sa: string;
   unite: string;
-  indexCompteur: string;
+  // indexCompteur: string; // Removed global index compteur
+  indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste
   shifts: string[]; // Corresponds to 1er, 2eme, 3eme D/F times
   ventilation: { [code: number]: string }; // Use code as key for easier access
   bulls: string[]; // Corresponds to 1er, 2eme, 3eme D manque bull
@@ -138,6 +144,7 @@ interface FormData {
 
 export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+   const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
 
   const [formData, setFormData] = useState<FormData>({
     entree: "",
@@ -146,7 +153,7 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
     machineEngins: "",
     sa: "",
     unite: "",
-    indexCompteur: "",
+    indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes
     shifts: ["", "", ""], // For 6H30 F, 14H30 F, 22H30 F fields
     ventilation: data.ventilation.reduce((acc, item) => ({ ...acc, [item.code]: "" }), {}),
     bulls: ["", "", ""], // For Manque Bull 1er D, 2eme D, 3eme D
@@ -159,9 +166,9 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
 
  const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    section: keyof FormData | 'ventilation' | 'exploitation' | 'personnel' | 'tricone' | 'gasoil' | 'repartitionTravail' | 'shifts' | 'bulls',
-    subFieldOrIndex?: string | number, // Can be ventilation code, exploitation key, personnel role, tricone/gasoil field, repartition index, shifts/bulls index
-    repartitionField?: keyof RepartitionItem
+    section: keyof FormData | 'ventilation' | 'exploitation' | 'personnel' | 'tricone' | 'gasoil' | 'repartitionTravail' | 'shifts' | 'bulls' | 'indexCompteurs',
+    subFieldOrIndex?: string | number, // Can be ventilation code, exploitation key, personnel role, tricone/gasoil field, repartition/indexCompteurs/shifts/bulls index
+    nestedField?: keyof RepartitionItem | keyof IndexCompteurPoste // For repartition or indexCompteurs
  ) => {
     const { name, value } = e.target;
     const targetName = name || e.target.id; // Use id if name is not available
@@ -174,20 +181,22 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
         } else if (section === 'exploitation' && typeof subFieldOrIndex === 'string') {
             newData.exploitation[subFieldOrIndex] = value;
         } else if (section === 'personnel' && typeof subFieldOrIndex === 'string' && (subFieldOrIndex === 'conducteur' || subFieldOrIndex === 'graisseur' || subFieldOrIndex === 'matricules')) {
-             // Ensure personnel object exists before updating
              newData.personnel = { ...newData.personnel, [subFieldOrIndex]: value };
         } else if (section === 'tricone' && typeof subFieldOrIndex === 'string' && subFieldOrIndex in newData.tricone) {
-             // Ensure tricone object exists before updating
              newData.tricone = { ...newData.tricone, [subFieldOrIndex as keyof typeof newData.tricone]: value };
         } else if (section === 'gasoil' && typeof subFieldOrIndex === 'string' && subFieldOrIndex in newData.gasoil) {
-             // Ensure gasoil object exists before updating
              newData.gasoil = { ...newData.gasoil, [subFieldOrIndex as keyof typeof newData.gasoil]: value };
-        } else if (section === 'repartitionTravail' && typeof subFieldOrIndex === 'number' && repartitionField) {
-             // Ensure the array and item exist
+        } else if (section === 'repartitionTravail' && typeof subFieldOrIndex === 'number' && nestedField && nestedField in newData.repartitionTravail[0]) {
             if (newData.repartitionTravail && newData.repartitionTravail[subFieldOrIndex]) {
                 const newRepartition = [...newData.repartitionTravail];
-                newRepartition[subFieldOrIndex] = { ...newRepartition[subFieldOrIndex], [repartitionField]: value };
+                newRepartition[subFieldOrIndex] = { ...newRepartition[subFieldOrIndex], [nestedField]: value };
                 newData.repartitionTravail = newRepartition;
+            }
+        } else if (section === 'indexCompteurs' && typeof subFieldOrIndex === 'number' && nestedField && nestedField in newData.indexCompteurs[0]) {
+             if (newData.indexCompteurs && newData.indexCompteurs[subFieldOrIndex]) {
+                const newIndexCompteurs = [...newData.indexCompteurs];
+                newIndexCompteurs[subFieldOrIndex] = { ...newIndexCompteurs[subFieldOrIndex], [nestedField]: value };
+                newData.indexCompteurs = newIndexCompteurs;
             }
         } else if (section === 'shifts' && typeof subFieldOrIndex === 'number') {
             const newShifts = [...newData.shifts];
@@ -201,7 +210,7 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
             // Handles top-level fields like entree, secteur, unite, etc.
             (newData as any)[section] = value;
         } else {
-             console.warn("Unhandled input change:", { section, subFieldOrIndex, repartitionField, targetName, value });
+             console.warn("Unhandled input change:", { section, subFieldOrIndex, nestedField, targetName, value });
         }
 
         return newData;
@@ -222,6 +231,25 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
          }
      }));
     };
+
+    // Function to calculate working hours
+    const calculateWorkingHours = () => {
+        const posteHours = formData.indexCompteurs.map(compteur => {
+            const debut = parseFloat(compteur.debut);
+            const fin = parseFloat(compteur.fin);
+            if (!isNaN(debut) && !isNaN(fin) && fin >= debut) {
+                return fin - debut;
+            }
+            return 0;
+        });
+        const totalHours = posteHours.reduce((sum, hours) => sum + hours, 0);
+        setCalculatedHours({ poste: posteHours, total: totalHours });
+    };
+
+    // Recalculate on index compteur change
+    useEffect(() => {
+        calculateWorkingHours();
+    }, [formData.indexCompteurs]);
 
 
   return (
@@ -259,9 +287,9 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
             </div>
 
 
-        {/* Section: Unite & Index Compteur Global */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+        {/* Section: Unite & Index Compteur per Poste */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-1">
             <Label htmlFor="unite">Unité</Label>
             <Input
               id="unite"
@@ -269,14 +297,44 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
               onChange={(e) => handleInputChange(e, "unite")}
             />
           </div>
-          <div>
-            <Label htmlFor="indexCompteur">Index Compteur (Global)</Label>
-            <Input
-              id="indexCompteur"
-              value={formData.indexCompteur}
-              onChange={(e) => handleInputChange(e, "indexCompteur")}
-            />
-          </div>
+           {/* Index Compteur per Poste */}
+           <div className="md:col-span-3 grid grid-cols-3 gap-4 border p-4 rounded-md bg-muted/30">
+                {POSTE_ORDER.map((poste, index) => (
+                    <div key={`index-${poste}`} className="space-y-2">
+                         <Label className="font-medium">{poste} Poste</Label>
+                         <div>
+                            <Label htmlFor={`index-debut-${poste}`} className="text-xs text-muted-foreground">Début</Label>
+                            <Input
+                                id={`index-debut-${poste}`}
+                                type="number"
+                                step="0.01"
+                                value={formData.indexCompteurs[index]?.debut || ''}
+                                onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'debut')}
+                                placeholder="Index début"
+                                className="h-8"
+                            />
+                         </div>
+                         <div>
+                             <Label htmlFor={`index-fin-${poste}`} className="text-xs text-muted-foreground">Fin</Label>
+                            <Input
+                                id={`index-fin-${poste}`}
+                                type="number"
+                                step="0.01"
+                                value={formData.indexCompteurs[index]?.fin || ''}
+                                onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'fin')}
+                                placeholder="Index fin"
+                                className="h-8"
+                            />
+                         </div>
+                          <div className="text-xs text-muted-foreground pt-1">
+                             Heures: {calculatedHours.poste[index].toFixed(2)}h
+                         </div>
+                    </div>
+                ))}
+                <div className="col-span-3 mt-2 text-right font-semibold">
+                    Total Heures (24h): {calculatedHours.total.toFixed(2)}h
+                 </div>
+           </div>
         </div>
 
          {/* Section: Poste Selection & Shift Times */}
@@ -612,3 +670,4 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
     </Card>
   );
 }
+
