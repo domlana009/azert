@@ -743,7 +743,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                         ))}
                         {/* Add Total Row */}
                          <TableRow className="bg-muted/80 font-semibold">
-                             <TableCell colSpan={3}>TOTAL Arrêts</TableCell> {/* Adjusted colSpan */}
+                             <TableCell colSpan={3}>TOTAL Arrêts</TableCell>{/* Adjusted colSpan */}
                              <TableCell className="text-right">
                                  <Input
                                     type="text"
