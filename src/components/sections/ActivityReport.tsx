@@ -9,6 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // Import Select components
+import {
   Table,
   TableBody,
   TableCell,
@@ -57,6 +64,8 @@ interface ActivityReportProps {
 }
 
 type Poste = "1er" | "2ème" | "3ème";
+type Park = 'PARK 1' | 'PARK 2' | 'PARK 3';
+type StockType = 'NORMAL' | 'OCEANE' | 'PB30' | 'HEURE DEBUT STOCK';
 
 // Updated Poste times and order
 const POSTE_TIMES: Record<Poste, string> = {
@@ -65,6 +74,8 @@ const POSTE_TIMES: Record<Poste, string> = {
   "2ème": "14:30 - 22:30",
 };
 const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
+const PARKS: Park[] = ['PARK 1', 'PARK 2', 'PARK 3'];
+const STOCK_TYPES: StockType[] = ['NORMAL', 'OCEANE', 'PB30', 'HEURE DEBUT STOCK'];
 
 interface Stop {
   id: string;
@@ -86,6 +97,15 @@ interface LiaisonCounter {
     end: string;
 }
 
+// Interface for Stock Entries
+interface StockEntry {
+    id: string;
+    park: Park | '';
+    type: StockType | '';
+    value: string; // Can be quantity or time HH:MM
+}
+
+
 export function ActivityReport({ currentDate }: ActivityReportProps) {
   const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
 
@@ -106,6 +126,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
     { id: crypto.randomUUID(), start: "", end: "" }, // Initial empty liaison counter
   ]);
+  // State for stock entries
+  const [stockEntries, setStockEntries] = useState<StockEntry[]>([
+      { id: crypto.randomUUID(), park: '', type: '', value: '' } // Start with one empty entry
+  ]);
+
 
   const [totalDowntime, setTotalDowntime] = useState(0);
   const [operatingTime, setOperatingTime] = useState(TOTAL_SHIFT_MINUTES);
@@ -136,6 +161,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setLiaisonCounters([...liaisonCounters, { id: crypto.randomUUID(), start: "", end: "" }]);
   };
 
+   // Function to add stock entry
+   const addStockEntry = () => {
+        setStockEntries([...stockEntries, { id: crypto.randomUUID(), park: '', type: '', value: '' }]);
+   };
+
 
   const deleteStop = (id: string) => {
     setStops(stops.filter(stop => stop.id !== id));
@@ -148,6 +178,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
    // Function to delete liaison counter
   const deleteLiaisonCounter = (id: string) => {
     setLiaisonCounters(liaisonCounters.filter(counter => counter.id !== id));
+  };
+
+  // Function to delete stock entry
+  const deleteStockEntry = (id: string) => {
+    setStockEntries(stockEntries.filter(entry => entry.id !== id));
   };
 
  // Update field type to exclude hm and ha
@@ -163,6 +198,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
  // Function to update liaison counter
  const updateLiaisonCounter = (id: string, field: keyof Omit<LiaisonCounter, 'id'>, value: string) => {
     setLiaisonCounters(liaisonCounters.map(counter => counter.id === id ? { ...counter, [field]: value } : counter));
+ };
+
+ // Function to update stock entry
+ const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id'>, value: string) => {
+    setStockEntries(stockEntries.map(entry => entry.id === id ? { ...entry, [field]: value } : entry));
  };
 
 
@@ -426,102 +466,91 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
         </div>
 
 
-        {/* Stock Section */}
-        <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
-          <h3 className="font-semibold text-lg text-foreground">Stock</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Changed to 3 columns */}
-            {/* PARK 1 */}
-            <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
-              <h4 className="font-medium text-foreground mb-2">PARK 1</h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    NORMAL
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    OCEANE
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    PB30
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-              </div>
-               {/* Heure Debut Stock */}
-               <div className="mt-2">
-                    <Label className="block text-muted-foreground text-xs mb-1">HEURE DEBUT STOCK</Label>
-                    <Input type="time" className="h-8 text-sm"/>
-               </div>
-            </div>
-
-            {/* PARK 2 */}
-            <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
-              <h4 className="font-medium text-foreground mb-2">PARK 2</h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    NORMAL
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    OCEANE
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    PB30
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-              </div>
-              {/* Heure Debut Stock */}
-               <div className="mt-2">
-                    <Label className="block text-muted-foreground text-xs mb-1">HEURE DEBUT STOCK</Label>
-                    <Input type="time" className="h-8 text-sm"/>
-               </div>
-            </div>
-
-             {/* PARK 3 */}
-            <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
-              <h4 className="font-medium text-foreground mb-2">PARK 3</h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    NORMAL
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    OCEANE
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-                <div>
-                  <Label className="block text-muted-foreground text-xs mb-1">
-                    PB30
-                  </Label>
-                  <Input type="text" className="h-8 text-sm"/>
-                </div>
-              </div>
-               {/* Heure Debut Stock */}
-               <div className="mt-2">
-                    <Label className="block text-muted-foreground text-xs mb-1">HEURE DEBUT STOCK</Label>
-                    <Input type="time" className="h-8 text-sm"/>
-               </div>
-            </div>
-
+        {/* Stock Section - Refactored */}
+        <div className="space-y-4 p-4 border rounded-lg bg-card">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-lg text-foreground">Stock</h3>
+            <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={addStockEntry}>
+              <Plus className="h-4 w-4 mr-1" /> Ajouter Entrée Stock
+            </Button>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">PARK</TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[200px]">Type</TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Valeur (Quantité ou Heure)</TableHead>
+                  <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stockEntries.map((entry) => (
+                  <TableRow key={entry.id} className="hover:bg-muted/50">
+                    <TableCell className="p-2">
+                      <Select
+                        value={entry.park}
+                        onValueChange={(value: Park) => updateStockEntry(entry.id, "park", value)}
+                      >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Choisir PARK" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PARKS.map(park => (
+                            <SelectItem key={park} value={park}>{park}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="p-2">
+                       <Select
+                        value={entry.type}
+                        onValueChange={(value: StockType) => updateStockEntry(entry.id, "type", value)}
+                       >
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Choisir Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STOCK_TYPES.map(type => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="p-2">
+                      <Input
+                        type={entry.type === 'HEURE DEBUT STOCK' ? "time" : "text"} // Use time input if type is HEURE DEBUT STOCK
+                        className="w-full h-8 text-sm"
+                        placeholder={entry.type === 'HEURE DEBUT STOCK' ? "HH:MM" : "Quantité"}
+                        value={entry.value}
+                        onChange={(e) => updateStockEntry(entry.id, "value", e.target.value)}
+                      />
+                    </TableCell>
+                    <TableCell className="p-2 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteStockEntry(entry.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                      >
+                        <Trash className="h-4 w-4" />
+                        <span className="sr-only">Supprimer</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {stockEntries.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4">
+                            Aucune entrée de stock ajoutée.
+                        </TableCell>
+                    </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </div>
+
 
         {/* Action Buttons */}
         <div className="mt-8 flex justify-end space-x-3"> {/* Added margin-top */}
