@@ -23,8 +23,8 @@ import { AlertCircle } from "lucide-react"; // Icon for errors
 
 interface R0ReportProps {
   currentDate: string;
-   // TODO: Add prop for previous day's 3rd shift end counter when backend is available
-   // previousDayThirdShiftEnd?: number;
+   // Prop for previous day's 3rd shift end counter
+   previousDayThirdShiftEnd?: string | null; // Use string | null to represent potential absence
 }
 
 type Poste = "1er" | "2ème" | "3ème";
@@ -34,8 +34,9 @@ const MAX_HOURS_PER_POSTE = 8;
 const POSTE_TIMES: Record<Poste, string> = {
   "1er": "06:30 - 14:30", // Index 0
   "2ème": "14:30 - 22:30", // Index 1
-  "3ème": "22:30 - 06:30", // Index 2
+  "3ème": "22:30 - 06:30", // Index 2 (of the next day cycle)
 };
+// Order for UI display and indexing in arrays
 const POSTE_ORDER: Poste[] = ["1er", "2ème", "3ème"]; // Match indexCompteurs array order
 
 // Define types for form data sections
@@ -59,10 +60,11 @@ interface FormData {
   sa: string;
   unite: string;
   indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste, ORDER MUST MATCH POSTE_ORDER
-  shifts: string[]; // Corresponds to postes 1er, 2eme, 3eme
+  shifts: string[]; // Corresponds to postes 1er, 2eme, 3eme D/F times
   ventilation: { code: number; label: string; duree: string }[]; // Updated ventilation structure
   exploitation: Record<string, string>; // Use a record for exploitation data
-  bulls: string[]; // Corresponds to 1er, 2eme, 3eme D manque bull - NOW USED FOR DISPLAYING GROSS HOURS
+  // 'bulls' now used for displaying calculated gross hours per poste
+  bulls: string[]; // Index 0: 1er, Index 1: 2eme, Index 2: 3eme
   repartitionTravail: RepartitionItem[];
   tricone: {
     pose: string;
@@ -110,20 +112,20 @@ interface FormData {
     { code: 242, label: "MANQUE OUTILS DE TRAVAIL" },
     { code: 243, label: "MACHINE A L'ARRET" },
     { code: 244, label: "PANNE ENGIN DEVANT MACHINE" },
-    { code: 441, label: "RELEVE" }, // Corrected code based on user image
-    { code: 442, label: "EXECUTION PLATE FORME" },
-    { code: 443, label: "DEPLACEMENT" }, // Corrected code based on user image
-    { code: 444, label: "TIR ET SAUTAGE" }, // Corrected MISE EN SAUTAGE
-    { code: 445, label: "MOUV. DE CABLE" }, // Corrected MOV. // Corrected code based on user image
-    { code: 446, label: "ARRET DECIDE" }, // Corrected code based on user image
-    { code: 447, label: "MANQUE CONDUCTEUR" }, // Corrected code based on user image
-    { code: 448, label: "BRIQUET" }, // Corrected code based on user image
-    { code: 449, label: "PERTES (INTEMPERIES EXCLUES)" }, // Corrected PISTES // Corrected code based on user image
-    { code: 450, label: "ARRETS MECA. INSTALLATIONS FIXES" },
-    { code: 451, label: "TELESCOPAGE" }, // Corrected code based on user image
+    { code: 441, label: "RELEVE" }, // Corrected code based on user image -> Should be 441? Image shows 441, text has 442
+    { code: 442, label: "EXECUTION PLATE FORME" }, // Text has 443
+    { code: 443, label: "DEPLACEMENT" }, // Text has 444, image has 443
+    { code: 444, label: "TIR ET SAUTAGE" }, // Text has 445, image has 444
+    { code: 445, label: "MOUV. DE CABLE" }, // Text has 446, image has 445
+    { code: 446, label: "ARRET DECIDE" }, // Text has 448, image has 446
+    { code: 447, label: "MANQUE CONDUCTEUR" }, // Text has 449, image has 447
+    { code: 448, label: "BRIQUET" }, // Text has 450, image has 448
+    { code: 449, label: "PERTES (INTEMPERIES EXCLUES)" }, // Text has 451, image has 449
+    { code: 450, label: "ARRETS MECA. INSTALLATIONS FIXES" }, // Text has 452
+    { code: 451, label: "TELESCOPAGE" }, // Text has 453, image has 451
     // Assuming the last two codes were typos and should be distinct
-    { code: 452, label: "EXCAVATION PURE" }, // Previously 452
-    { code: 453, label: "TERRASSEMENT PUR" }, // Previously 453
+    { code: 452, label: "EXCAVATION PURE" }, // Text has 452
+    { code: 453, label: "TERRASSEMENT PUR" }, // Text has 453
  ];
 
  const exploitationLabels = [
@@ -146,7 +148,7 @@ interface FormData {
     "T5 CORPS FISSURE",
     "T6 ROULEMENT COINCE",
     "T7 FILAGE ABIME",
-    "T8 TRICONE PERDU", // Corrected TRONCON PERDU
+    "T8 TRICONE PERDU", // Corrected TRONCON PERDU -> Assuming this based on T1-T7
  ];
 
 
@@ -207,7 +209,7 @@ function formatHoursToHoursMinutes(totalHours: number): string {
 
 
 // Added type prop
-export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0ReportProps) {
+export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0ReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
    // State to hold calculated gross hours per poste and total
    const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
@@ -215,7 +217,7 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
    const [totalStopMinutes, setTotalStopMinutes] = useState(0);
    // State to hold net working hours (total gross hours - total stop hours)
    const [netWorkingHours, setNetWorkingHours] = useState(0);
-   // State for counter validation errors
+   // State for counter validation errors (including sequential checks)
    const [counterErrors, setCounterErrors] = useState<string[]>(['', '', '']); // One error message per poste
 
   const [formData, setFormData] = useState<FormData>({
@@ -229,7 +231,7 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times
     ventilation: ventilationData.map(item => ({ ...item, duree: "" })), // Initialize duration for ventilation items
     exploitation: exploitationLabels.reduce((acc, label) => ({ ...acc, [label]: "" }), {}), // Initialize exploitation fields
-    bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme - NOW DISPLAYING GROSS HOURS
+    bulls: ["", "", ""], // Display for gross hours: Index 0: 1er, Index 1: 2eme, Index 2: 3eme
     repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
     tricone: {
       pose: "",
@@ -284,12 +286,12 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                 newIndexCompteurs[indexOrField] = { ...newIndexCompteurs[indexOrField], [fieldOrNestedField as keyof IndexCompteurPoste]: value };
                 newData.indexCompteurs = newIndexCompteurs;
 
-                // Clear error for this specific poste when input changes
-                setCounterErrors(prevErrors => {
-                  const updatedErrors = [...prevErrors];
-                  updatedErrors[indexOrField] = '';
-                  return updatedErrors;
-                });
+                 // Clear error for this specific poste when input changes
+                 setCounterErrors(prevErrors => {
+                    const updatedErrors = [...prevErrors];
+                    updatedErrors[indexOrField] = '';
+                    return updatedErrors;
+                 });
             }
           } else if (section === 'tricone' && fieldOrNestedField && typeof fieldOrNestedField === 'string' && fieldOrNestedField in newData.tricone) {
               newData.tricone = { ...newData.tricone, [fieldOrNestedField as keyof typeof newData.tricone]: value };
@@ -321,9 +323,8 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
 
    const handleSelectChange = (
       value: string,
-      section: keyof FormData | 'tricone', // Specify sections where select is used
-      field: keyof FormData['tricone'] | keyof FormData['gasoil'] // Allow gasoil fields too
-      // Add other fields if needed
+      section: keyof FormData | 'tricone' | 'gasoil', // Specify sections where select is used
+      field: keyof FormData['tricone'] | keyof FormData['gasoil']
     ) => {
      setFormData(prevData => {
         let newData = { ...prevData };
@@ -341,16 +342,18 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
      const validateAndCalculateCompteurHours = () => {
         let validationPassed = true;
         const newErrors = ['', '', '']; // Order: 1er, 2eme, 3eme
-        const previousDayThirdShiftEndParsed = NaN; // TODO: Replace with actual previous day value when available
-        // const previousDayThirdShiftEndParsed = previousDayThirdShiftEnd ? parseFloat(previousDayThirdShiftEnd) : NaN;
-
+        const previousDayFin3Parsed = previousDayThirdShiftEnd ? parseFloat(previousDayThirdShiftEnd) : NaN;
 
         const posteHours = formData.indexCompteurs.map((compteur, index) => {
             const posteName = POSTE_ORDER[index];
             const debutStr = compteur.debut;
             const finStr = compteur.fin;
 
-            if (debutStr === '' && finStr === '') return 0; // Skip empty fields for calculation, but still validate consistency if others are filled
+            // If both fields are empty, skip validation and calculation for this poste
+            if (debutStr === '' && finStr === '') {
+                 newErrors[index] = ''; // Clear any previous error
+                 return 0;
+             }
 
             const debut = parseFloat(debutStr);
             const fin = parseFloat(finStr);
@@ -359,7 +362,7 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
             if (isNaN(debut) || isNaN(fin)) {
                 newErrors[index] = "Début et Fin doivent être des nombres.";
                 validationPassed = false;
-                return 0;
+                return 0; // Return 0, validation failed
             }
             if (fin < debut) {
                 newErrors[index] = "Fin doit être supérieur ou égal à Début.";
@@ -368,39 +371,65 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
             }
             const duration = fin - debut;
             if (duration > MAX_HOURS_PER_POSTE) {
-                 newErrors[index] = `Durée max ${MAX_HOURS_PER_POSTE}h dépassée.`;
+                 newErrors[index] = `Durée max ${MAX_HOURS_PER_POSTE}h dépassée (${duration.toFixed(2)}h).`;
                  validationPassed = false;
-                 return 0; // Return 0 if validation fails
+                 return 0;
             }
 
             // 2. Sequential Validation (Check if current Debut matches previous Fin)
-            if (index > 0) { // Check against previous poste within the same day (2eme vs 1er, 3eme vs 2eme)
-                const prevIndex = index - 1;
-                const prevFinStr = formData.indexCompteurs[prevIndex]?.fin;
-                if (prevFinStr) { // Only validate if previous Fin exists
+            // Index 0 (1er Poste): Check against previous day's 3eme Poste Fin
+            if (index === 0) {
+                 if (!isNaN(previousDayFin3Parsed)) { // Only validate if previous day data exists
+                    if (debut !== previousDayFin3Parsed) {
+                       newErrors[index] = `Début (${debut}) doit correspondre à Fin (${previousDayFin3Parsed}) du 3ème Poste de la veille.`;
+                       validationPassed = false;
+                       return 0;
+                    }
+                 } else if (previousDayThirdShiftEnd === undefined) {
+                     // Optional: Handle case where prop wasn't passed (might be first day entry)
+                     // console.warn("Fin du 3ème Poste de la veille non fournie.");
+                 } else if (previousDayThirdShiftEnd === null) {
+                     // Optional: Handle case where previous day had no 3rd shift data
+                     // console.info("Pas de données pour le 3ème Poste de la veille.");
+                 }
+                 // If previousDayFin3Parsed is NaN, we skip this validation for the first poste
+            }
+            // Index 1 (2eme Poste): Check against 1er Poste Fin
+            else if (index === 1) {
+                const prevFinStr = formData.indexCompteurs[0]?.fin;
+                if (prevFinStr) { // Only validate if 1er Fin exists and is numeric
                     const prevFin = parseFloat(prevFinStr);
                     if (!isNaN(prevFin) && debut !== prevFin) {
-                        newErrors[index] = `Début (${debut}) doit correspondre à Fin (${prevFin}) du ${POSTE_ORDER[prevIndex]} Poste.`;
+                        newErrors[index] = `Début (${debut}) doit correspondre à Fin (${prevFin}) du ${POSTE_ORDER[0]} Poste.`;
                         validationPassed = false;
                         return 0;
                     }
-                }
-            } else if (index === 0) { // Special case for 1er Poste: check against previous day's 3eme Poste Fin
-                 // TODO: Uncomment and use when previousDayThirdShiftEnd is available
-                // if (!isNaN(previousDayThirdShiftEndParsed) && debut !== previousDayThirdShiftEndParsed) {
-                //    newErrors[index] = `Début (${debut}) doit correspondre à Fin (${previousDayThirdShiftEndParsed}) du 3ème Poste de la veille.`;
-                //    validationPassed = false;
-                //    return 0;
-                // } else if (isNaN(previousDayThirdShiftEndParsed)) {
-                //     // Optional: Handle missing previous day data (e.g., allow first entry, or show a specific warning)
-                //     console.warn("Fin du 3ème Poste de la veille non disponible pour validation.");
-                // }
+                } else if (formData.indexCompteurs[0]?.debut !== '') { // Error if debut exists but fin doesn't
+                     newErrors[index] = `Fin du ${POSTE_ORDER[0]} Poste manquante pour validation.`;
+                     validationPassed = false;
+                     return 0;
+                 }
             }
-
+            // Index 2 (3eme Poste): Check against 2eme Poste Fin
+            else if (index === 2) {
+                const prevFinStr = formData.indexCompteurs[1]?.fin;
+                 if (prevFinStr) { // Only validate if 2eme Fin exists and is numeric
+                    const prevFin = parseFloat(prevFinStr);
+                    if (!isNaN(prevFin) && debut !== prevFin) {
+                        newErrors[index] = `Début (${debut}) doit correspondre à Fin (${prevFin}) du ${POSTE_ORDER[1]} Poste.`;
+                        validationPassed = false;
+                        return 0;
+                    }
+                 } else if (formData.indexCompteurs[1]?.debut !== '') { // Error if debut exists but fin doesn't
+                     newErrors[index] = `Fin du ${POSTE_ORDER[1]} Poste manquante pour validation.`;
+                     validationPassed = false;
+                     return 0;
+                 }
+            }
 
              // Validation passed for this poste
             newErrors[index] = '';
-            return duration;
+            return duration; // Return calculated duration
         });
 
         setCounterErrors(newErrors);
@@ -448,11 +477,11 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
     };
 
 
-    // Recalculate on index compteur change
+    // Recalculate on index compteur change or when previous day data potentially changes
     useEffect(() => {
         validateAndCalculateCompteurHours();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.indexCompteurs /*, previousDayThirdShiftEnd */]); // Add dependency for cross-day validation later
+    }, [formData.indexCompteurs, previousDayThirdShiftEnd]); // Add dependency
 
      // Recalculate on ventilation duration change
     useEffect(() => {
@@ -478,18 +507,26 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
     // Handle form submission - Prevent submission if errors exist
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const isCompteurValid = validateAndCalculateCompteurHours(); // Re-validate on submit attempt
+        // Re-validate on submit attempt to catch any potential inconsistencies
+        const isCompteurValid = validateAndCalculateCompteurHours();
 
         if (!isCompteurValid) {
             console.error("Validation failed: Invalid counter inputs.");
-            // Optionally, show a general error message to the user
+            // Optionally, scroll to the first error or show a general message
+            // For example, find the first input with an error and focus it
+            const firstErrorIndex = counterErrors.findIndex(err => err !== '');
+            if (firstErrorIndex !== -1) {
+                const firstErrorInput = document.getElementById(`index-debut-${POSTE_ORDER[firstErrorIndex]}`);
+                firstErrorInput?.focus();
+            }
             // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les compteurs.", variant: "destructive" });
             return; // Prevent submission
         }
 
         // If validation passes, proceed with submission logic...
         console.log("Form submitted:", formData);
-        // Replace with actual submission logic (e.g., API call)
+        // TODO: Replace with actual submission logic (e.g., API call)
+        // Example: await submitR0Report(formData);
     };
 
 
@@ -540,6 +577,7 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                   value={formData.unite}
                   onChange={(e) => handleInputChange(e, "unite")}
                   className="h-8"
+                  placeholder="ex: H ou M3"
                 />
               </div>
                {/* Index Compteur per Poste */}
@@ -552,7 +590,8 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                                 <Input
                                     id={`index-debut-${poste}`}
                                     type="number"
-                                    step="0.01"
+                                    step="0.01" // Allow decimals for hours/counters
+                                    min="0" // Prevent negative values
                                     value={formData.indexCompteurs[index]?.debut || ''}
                                     onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'debut')}
                                     placeholder="Index début"
@@ -567,6 +606,7 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                                     id={`index-fin-${poste}`}
                                     type="number"
                                     step="0.01"
+                                    min="0"
                                     value={formData.indexCompteurs[index]?.fin || ''}
                                     onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'fin')}
                                     placeholder="Index fin"
@@ -587,6 +627,17 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                     <div className="col-span-3 mt-2 text-right font-semibold">
                         Total Heures Brutes (24h): {formatHoursToHoursMinutes(calculatedHours.total)}
                      </div>
+                     {/* Display message about previous day's data if relevant */}
+                     {previousDayThirdShiftEnd === undefined && (
+                         <p className="col-span-3 text-xs text-muted-foreground mt-1">
+                            Info: Données du 3ème poste de la veille non disponibles pour validation du début 1er poste.
+                         </p>
+                     )}
+                      {previousDayThirdShiftEnd === null && (
+                         <p className="col-span-3 text-xs text-muted-foreground mt-1">
+                             Info: Pas de fin enregistrée pour le 3ème poste de la veille.
+                         </p>
+                     )}
                </div>
             </div>
 
@@ -694,12 +745,14 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                                 </Label>
                                 <Input
                                     id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
-                                    type="text"
+                                    type={item === "HEURES COMPTEUR" ? "text" : "number"} // Use number for metrics, text for calculated hours
+                                    step={item !== "HEURES COMPTEUR" ? "0.01" : undefined} // Allow decimals for metrics
                                     className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium' : ''}`}
                                     value={formData.exploitation[item]}
                                     onChange={(e) => handleInputChange(e, 'exploitation', item)}
                                     readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
                                     disabled={item === "HEURES COMPTEUR"} // Visually indicate it's disabled
+                                    placeholder={item !== "HEURES COMPTEUR" ? "0" : ""}
                                 />
                              </div>
                         ))}
@@ -723,6 +776,7 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                       value={formData.bulls[index]} // Display formatted gross hours from bulls array
                       readOnly
                       className="h-8 bg-muted font-medium" // Style as read-only
+                      tabIndex={-1} // Make it non-focusable
                     />
                   </div>
                 ))}
@@ -865,7 +919,9 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                         <Label htmlFor="tricone-index-compteur">Index Compteur (Tricone)</Label>
                         <Input
                             id="tricone-index-compteur"
-                            type="text"
+                            type="number"
+                            step="0.01"
+                            min="0"
                             placeholder="Index au moment de la dépose"
                             name="indexCompteur"
                             value={formData.tricone.indexCompteur}
@@ -894,7 +950,9 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                             <Label htmlFor="gasoil-index">Index Compteur (Gasoil)</Label>
                             <Input
                                 id="gasoil-index"
-                                type="text"
+                                type="number"
+                                step="0.01"
+                                min="0"
                                 name="indexCompteur"
                                 value={formData.gasoil.indexCompteur}
                                  onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'indexCompteur')}
@@ -905,8 +963,10 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
                             <Label htmlFor="gasoil-quantite">Quantité Délivrée</Label>
                             <Input
                                 id="gasoil-quantite"
-                                type="text"
-                                 name="quantiteDelivree"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                name="quantiteDelivree"
                                 value={formData.gasoil.quantiteDelivree}
                                 onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
                                  placeholder="en Litres" // Added placeholder
@@ -930,5 +990,3 @@ export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0Repo
     </Card>
   );
 }
-
-    
