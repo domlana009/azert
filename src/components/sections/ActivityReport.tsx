@@ -96,6 +96,7 @@ function calculateTotalCounterMinutes(counters: Array<{ start: string; end: stri
 
 interface ActivityReportProps {
   currentDate: string;
+  previousDayThirdShiftEnd?: string | null; // Add prop for previous day's 3rd shift end counter
 }
 
 // Keep Poste constants for potential context or future use, even if UI element is removed
@@ -151,8 +152,9 @@ interface StockEntry {
   error?: string; // Optional error for poste selection
 }
 
+const MAX_HOURS_PER_POSTE = 8; // Max hours for a standard shift
 
-export function ActivityReport({ currentDate }: ActivityReportProps) {
+export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }: ActivityReportProps) {
 
 
   // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
@@ -191,6 +193,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   // State to track stock entry errors (specifically for poste selection)
   const [hasStockErrors, setHasStockErrors] = useState(false);
 
+  // State for counter validation errors (including sequential checks) - for ActivityReport counters
+   const [vibratorCounterErrors, setVibratorCounterErrors] = useState<Record<string, string>>({}); // Use record for ID-based errors
+   const [liaisonCounterErrors, setLiaisonCounterErrors] = useState<Record<string, string>>({});
+
 
   // Calculate total downtime and operating time whenever stops change
   useEffect(() => {
@@ -202,44 +208,174 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
   }, [stops]); // Removed TOTAL_PERIOD_MINUTES dependency as it's constant
 
-  // Calculate total counter durations and check for errors whenever counters change
-  useEffect(() => {
-    // Calculate total duration based on valid entries
-    const validVibratorCounters = vibratorCounters.filter(c => !c.error);
-    const vibratorTotal = calculateTotalCounterMinutes(validVibratorCounters);
-    setTotalVibratorMinutes(vibratorTotal);
 
-    // Check if ANY counter has an error
-    setHasVibratorErrors(vibratorCounters.some(c => !!c.error));
+  // Function to validate a single counter entry - Includes max duration and sequential checks
+  const validateCounterEntry = (
+        counterId: string,
+        counters: Array<Counter | LiaisonCounter>,
+        type: 'vibrator' | 'liaison',
+        currentStartStr: string,
+        currentEndStr: string,
+        currentPoste?: Poste | '',
+        previousDayData?: string | null // Only needed for 1er poste vibrator check
+    ): string | undefined => {
+        const startVal = validateAndParseCounterValue(currentStartStr);
+        const endVal = validateAndParseCounterValue(currentEndStr);
+        const errorSetter = type === 'vibrator' ? setVibratorCounterErrors : setLiaisonCounterErrors;
 
-    // Basic check: Total counter duration should not exceed total possible operating time (24 hours)
-    if (vibratorTotal > TOTAL_PERIOD_MINUTES) {
-        console.warn("Total vibreur duration exceeds 24h period.");
-        // Potentially set a general error flag or specific counter errors
-        // setHasVibratorErrors(true); // Ensure general error is shown if not already set
-    }
+        // Basic Validation
+        if (startVal === null && currentStartStr !== '' && currentStartStr !== '.' && currentStartStr !== ',') return "Début invalide.";
+        if (endVal === null && currentEndStr !== '' && currentEndStr !== '.' && currentEndStr !== ',') return "Fin invalide.";
+        if (startVal !== null && endVal !== null && endVal < startVal) return "Fin < Début.";
 
-  }, [vibratorCounters]); // Removed TOTAL_PERIOD_MINUTES dependency
+        // Max Duration Check (Per Poste Limit - 8 hours)
+        if (startVal !== null && endVal !== null) {
+            const durationHours = endVal - startVal;
+             if (durationHours > MAX_HOURS_PER_POSTE) {
+                 return `Durée max (${MAX_HOURS_PER_POSTE}h) dépassée (${durationHours.toFixed(2)}h).`;
+             }
+        }
 
-  useEffect(() => {
-      // Calculate total duration based on valid entries
-    const validLiaisonCounters = liaisonCounters.filter(c => !c.error);
-    const liaisonTotal = calculateTotalCounterMinutes(validLiaisonCounters);
-    setTotalLiaisonMinutes(liaisonTotal);
+        // Sequential Validation (based on Poste)
+        const currentIndex = counters.findIndex(c => c.id === counterId);
+        if (currentIndex === -1 || !currentPoste) return undefined; // Cannot validate sequence without index or poste
 
-    // Check if ANY counter has an error
-    setHasLiaisonErrors(liaisonCounters.some(c => !!c.error));
+        const posteIndex = POSTE_ORDER.indexOf(currentPoste); // 0 for 1er, 1 for 2eme, 2 for 3eme
 
-    // Basic check: Total counter duration should not exceed total possible operating time (24 hours)
-    if (liaisonTotal > TOTAL_PERIOD_MINUTES) {
-        console.warn("Total liaison duration exceeds 24h period.");
-        // setHasLiaisonErrors(true); // Ensure general error is shown if not already set
-    }
-  }, [liaisonCounters]); // Removed TOTAL_PERIOD_MINUTES dependency
+        // Find the counter for the previous logical poste (handling wrap-around for 1er)
+        let previousCounter: Counter | LiaisonCounter | undefined = undefined;
+        let expectedPreviousFinStr: string | undefined | null = undefined; // Can be null if prev day data is null
+
+        if (posteIndex === 0) { // Current is 1er Poste
+            // Need previous day's 3rd shift end (passed as prop for vibrators)
+            if (type === 'vibrator') {
+                expectedPreviousFinStr = previousDayData; // Use prop
+                 // If previousDayData is null, it means no previous data, skip check
+                 // If undefined, prop wasn't passed, maybe warn or skip
+                 if (expectedPreviousFinStr === undefined) {
+                    // console.warn("Previous day 3rd shift data missing for 1er poste validation.");
+                    expectedPreviousFinStr = null; // Treat as skip
+                 }
+            } else {
+                 // Need to find the 3rd poste *of the same day* if it exists in the liaison list
+                 previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === '3ème');
+                 expectedPreviousFinStr = previousCounter?.end;
+            }
+
+        } else if (posteIndex > 0) { // Current is 2eme or 3eme Poste
+             const previousPoste = POSTE_ORDER[posteIndex - 1];
+             // Find a counter with the previous poste in the *same list* (vibrator or liaison)
+             previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === previousPoste);
+             expectedPreviousFinStr = previousCounter?.end;
+        }
+
+
+        // Perform the check if an expected previous 'fin' value exists
+        if (expectedPreviousFinStr !== undefined && expectedPreviousFinStr !== null && currentStartStr !== '') {
+            const expectedPreviousFin = parseFloat(expectedPreviousFinStr);
+            if (isNaN(expectedPreviousFin)) {
+                 // This case might happen if the previous counter's 'fin' is invalid itself
+                 // We might want to propagate an error or handle it gracefully
+                 // For now, let's skip the sequential check if the reference is invalid
+                 // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid.`);
+            } else if (startVal !== null && startVal !== expectedPreviousFin) {
+                 const prevPosteName = posteIndex === 0 ? "3ème (veille)" : POSTE_ORDER[posteIndex - 1];
+                 return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFin}) du ${prevPosteName} Poste.`;
+             }
+        } else if (expectedPreviousFinStr === null) {
+             // Previous data explicitly not available (e.g., first day or no 3rd shift prev day)
+             // No sequential validation possible/needed for this boundary.
+         }
+         // else: No previous counter found, or previous 'fin' is empty, or current 'start' is empty - skip sequence check.
+
+
+        return undefined; // No error
+   };
+
+
+    // Calculate total counter durations and check for errors whenever counters change
+    useEffect(() => {
+        // --- Vibrator Counters ---
+        let vibratorValidationPassed = true;
+        const newVibratorErrors: Record<string, string> = {};
+        const validVibratorCounters = vibratorCounters.filter(c => {
+            const error = validateCounterEntry(c.id, vibratorCounters, 'vibrator', c.start, c.end, c.poste, previousDayThirdShiftEnd);
+             if ((c.start || c.end) && !c.poste) { // Also check if poste is missing when values exist
+                 newVibratorErrors[c.id] = "Veuillez sélectionner un poste.";
+                 vibratorValidationPassed = false;
+                 return false;
+             }
+            if (error) {
+                newVibratorErrors[c.id] = error;
+                vibratorValidationPassed = false;
+                return false;
+            }
+            return true; // Valid entry for total calculation
+        });
+
+        setVibratorCounterErrors(newVibratorErrors); // Update error state
+        setHasVibratorErrors(!vibratorValidationPassed); // Set general error flag
+
+        const vibratorTotal = calculateTotalCounterMinutes(validVibratorCounters);
+        setTotalVibratorMinutes(vibratorTotal);
+
+        // Check if total duration exceeds 24h (might need adjustment based on how postes overlap)
+        // This simple check might be too basic if postes can run concurrently.
+        if (vibratorTotal > TOTAL_PERIOD_MINUTES) {
+            console.warn("Total vibreur duration exceeds 24h period.");
+            // Consider setting a general error or flagging relevant counters
+             setHasVibratorErrors(true);
+        }
+
+
+        // --- Liaison Counters ---
+        let liaisonValidationPassed = true;
+        const newLiaisonErrors: Record<string, string> = {};
+        const validLiaisonCounters = liaisonCounters.filter(c => {
+            // Liaison validation doesn't need previous day data prop
+             const error = validateCounterEntry(c.id, liaisonCounters, 'liaison', c.start, c.end, c.poste);
+              if ((c.start || c.end) && !c.poste) { // Also check if poste is missing
+                 newLiaisonErrors[c.id] = "Veuillez sélectionner un poste.";
+                 liaisonValidationPassed = false;
+                 return false;
+             }
+             if (error) {
+                newLiaisonErrors[c.id] = error;
+                liaisonValidationPassed = false;
+                return false;
+            }
+            return true;
+        });
+
+        setLiaisonCounterErrors(newLiaisonErrors);
+        setHasLiaisonErrors(!liaisonValidationPassed);
+
+        const liaisonTotal = calculateTotalCounterMinutes(validLiaisonCounters);
+        setTotalLiaisonMinutes(liaisonTotal);
+
+        if (liaisonTotal > TOTAL_PERIOD_MINUTES) {
+            console.warn("Total liaison duration exceeds 24h period.");
+             setHasLiaisonErrors(true);
+        }
+
+         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vibratorCounters, liaisonCounters, previousDayThirdShiftEnd]); // Dependencies
+
 
    // Check for stock entry errors (poste selection)
   useEffect(() => {
-    setHasStockErrors(stockEntries.some(entry => !!entry.error));
+    // An entry is considered 'active' if park, type, or quantity has a value.
+    const activeEntryNeedsPoste = stockEntries.some(entry =>
+        (entry.park || entry.type || entry.quantity) && !entry.poste
+    );
+    setHasStockErrors(activeEntryNeedsPoste);
+
+    // Update individual entry errors (optional, if needed for inline display)
+    setStockEntries(prevEntries => prevEntries.map(entry => ({
+        ...entry,
+        error: (entry.park || entry.type || entry.quantity) && !entry.poste ? "Veuillez sélectionner un poste." : undefined
+    })));
+
   }, [stockEntries]);
 
 
@@ -269,11 +405,23 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
   const deleteVibratorCounter = (id: string) => {
     setVibratorCounters(vibratorCounters.filter(counter => counter.id !== id));
+     // Clean up errors for the deleted counter
+     setVibratorCounterErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[id];
+        return newErrors;
+      });
   };
 
    // Function to delete liaison counter
   const deleteLiaisonCounter = (id: string) => {
     setLiaisonCounters(liaisonCounters.filter(counter => counter.id !== id));
+     // Clean up errors for the deleted counter
+      setLiaisonCounterErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[id];
+        return newErrors;
+      });
   };
 
   // Function to delete stock entry
@@ -286,53 +434,22 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops(stops.map(stop => stop.id === id ? { ...stop, [field]: value } : stop));
  };
 
- // Function to validate a single counter entry - Updated for 24h
- const validateCounterEntry = (startStr: string, endStr: string): string | undefined => {
-    const startVal = validateAndParseCounterValue(startStr);
-    const endVal = validateAndParseCounterValue(endStr);
-
-    // Check if both are valid numbers
-    if (startVal === null && startStr !== '' && startStr !== '.' && startStr !== ',') return "Début invalide.";
-    if (endVal === null && endStr !== '' && endStr !== '.' && endStr !== ',') return "Fin invalide.";
-
-    // Check if end is >= start (only if both are valid numbers)
-    if (startVal !== null && endVal !== null && endVal < startVal) {
-        return "Fin < Début.";
-    }
-
-    // Check duration against total possible period time (24 hours)
-    if (startVal !== null && endVal !== null) {
-        const durationHours = endVal - startVal;
-        if (durationHours * 60 > TOTAL_PERIOD_MINUTES) { // Compare against 24h in minutes
-            return `Durée > ${formatMinutesToHoursMinutes(TOTAL_PERIOD_MINUTES)}.`; // Update error message
-        }
-    }
-
-
-    return undefined; // No error
- };
-
 
  // Updated updateVibratorCounter with validation and poste handling
  const updateVibratorCounter = (id: string, field: keyof Omit<Counter, 'id' | 'error'>, value: string) => {
-    setVibratorCounters(vibratorCounters.map(counter => {
+    setVibratorCounters(prevCounters => prevCounters.map(counter => {
         if (counter.id === id) {
             const updatedCounter = { ...counter, [field]: value };
-            // Validate start/end after update
-            const error = validateCounterEntry(
-                field === 'start' ? value : updatedCounter.start,
-                field === 'end' ? value : updatedCounter.end
-            );
-            // Add poste validation check - ensure poste is selected
-            let finalError = error;
-             // Check poste only if start or end has a value (or if poste itself is being cleared)
-             if ((updatedCounter.start || updatedCounter.end) && !updatedCounter.poste && field !== 'poste') {
-                 finalError = "Veuillez sélectionner un poste.";
-             } else if (field === 'poste' && !value && (updatedCounter.start || updatedCounter.end)) {
-                  finalError = "Veuillez sélectionner un poste.";
-             }
 
-            return { ...updatedCounter, error: finalError };
+            // Clear specific error for this counter immediately when input changes
+            setVibratorCounterErrors(prevErrors => {
+                const newErrors = { ...prevErrors };
+                delete newErrors[id]; // Remove error for this counter
+                return newErrors;
+            });
+
+            // The useEffect hook will handle re-validation and updating the error state
+            return updatedCounter;
         }
         return counter;
     }));
@@ -340,26 +457,21 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
  // Function to update liaison counter with validation and poste handling - Similar to updateVibratorCounter
  const updateLiaisonCounter = (id: string, field: keyof Omit<LiaisonCounter, 'id' | 'error'>, value: string) => {
-    setLiaisonCounters(liaisonCounters.map(counter => {
+     setLiaisonCounters(prevCounters => prevCounters.map(counter => {
          if (counter.id === id) {
-            const updatedCounter = { ...counter, [field]: value };
-            // Validate after update
-            const error = validateCounterEntry(
-                field === 'start' ? value : updatedCounter.start,
-                field === 'end' ? value : updatedCounter.end
-            );
-             // Add poste validation check - ensure poste is selected
-             let finalError = error;
-              // Check poste only if start or end has a value (or if poste itself is being cleared)
-             if ((updatedCounter.start || updatedCounter.end) && !updatedCounter.poste && field !== 'poste') {
-                 finalError = "Veuillez sélectionner un poste.";
-             } else if (field === 'poste' && !value && (updatedCounter.start || updatedCounter.end)) {
-                  finalError = "Veuillez sélectionner un poste.";
-             }
+             const updatedCounter = { ...counter, [field]: value };
 
-             return { ...updatedCounter, error: finalError };
-        }
-        return counter;
+             // Clear specific error for this counter immediately
+             setLiaisonCounterErrors(prevErrors => {
+                 const newErrors = { ...prevErrors };
+                 delete newErrors[id]; // Remove error for this counter
+                 return newErrors;
+             });
+
+             // Re-validation happens in useEffect
+             return updatedCounter;
+         }
+         return counter;
     }));
  };
 
@@ -369,39 +481,20 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStockEntries(stockEntries.map(entry => {
       if (entry.id === id) {
          const updatedEntry = { ...entry, [field]: value };
-         let error = undefined;
+         // No immediate error setting here, let useEffect handle validation based on state
+         updatedEntry.error = undefined; // Clear any previous inline error
 
          // Reset dependent fields or validate poste
          if (field === 'poste') {
              updatedEntry.park = ''; // Reset park, type, quantity when poste changes
              updatedEntry.type = '';
              updatedEntry.quantity = '';
-             // Validate if poste is empty but other fields are not (only if clearing poste)
-             if (!value && (updatedEntry.park || updatedEntry.type || updatedEntry.quantity)) {
-                  error = "Veuillez sélectionner un poste.";
-             }
          } else if (field === 'park') {
              updatedEntry.type = ''; // Reset type/quantity when park changes
              updatedEntry.quantity = '';
-             // Validate if poste is empty when park is selected
-             if (value && !updatedEntry.poste) {
-                  error = "Veuillez sélectionner un poste d'abord.";
-             }
          } else if (field === 'type') {
             updatedEntry.quantity = ''; // Reset quantity when type changes
-            // Validate if poste is empty when type is selected
-             if (value && !updatedEntry.poste) {
-                  error = "Veuillez sélectionner un poste d'abord.";
-             }
-         } else if (field === 'quantity') {
-             // Validate if poste is empty when quantity is entered
-             if (value && !updatedEntry.poste) {
-                  error = "Veuillez sélectionner un poste d'abord.";
-             }
          }
-
-         // Assign the determined error
-         updatedEntry.error = error;
 
          return updatedEntry;
       }
@@ -413,64 +506,25 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Re-validate all counters on submit just in case
-    let vibratorValidationFailed = false;
-    const finalVibratorCounters = vibratorCounters.map(c => {
-        // Ensure poste is selected if start or end is filled
-        let error = validateCounterEntry(c.start, c.end);
-        if (!error && (c.start || c.end) && !c.poste) {
-            error = "Veuillez sélectionner un poste.";
-        }
-        if (error) vibratorValidationFailed = true;
-        return { ...c, error };
-    });
-    setVibratorCounters(finalVibratorCounters);
-
-    let liaisonValidationFailed = false;
-    const finalLiaisonCounters = liaisonCounters.map(c => {
-         // Ensure poste is selected for liaison counters too if start or end is filled
-         let error = validateCounterEntry(c.start, c.end);
-         if (!error && (c.start || c.end) && !c.poste) {
-             error = "Veuillez sélectionner un poste.";
-         }
-         if (error) liaisonValidationFailed = true;
-        return { ...c, error };
-    });
-    setLiaisonCounters(finalLiaisonCounters);
-
-    // Re-validate stock entries for poste selection
-    let stockValidationFailed = false;
-    const finalStockEntries = stockEntries.map(entry => {
-         let error = undefined;
-         // Check if poste is missing when other dependent fields are filled
-         if (!entry.poste && (entry.park || entry.type || entry.quantity)) {
-             error = "Veuillez sélectionner un poste.";
-             stockValidationFailed = true;
-         }
-         return { ...entry, error };
-    });
-    setStockEntries(finalStockEntries);
-
-
-    // Recalculate totals based on potentially updated error states
-    const finalVibratorTotal = calculateTotalCounterMinutes(finalVibratorCounters.filter(c => !c.error));
-    const finalLiaisonTotal = calculateTotalCounterMinutes(finalLiaisonCounters.filter(c => !c.error));
-
-    // Final check against total period time (24h)
-    if (finalVibratorTotal > TOTAL_PERIOD_MINUTES) {
-        console.error("Validation failed: Total vibreur duration exceeds 24h period.");
-        vibratorValidationFailed = true;
-    }
-     if (finalLiaisonTotal > TOTAL_PERIOD_MINUTES) {
-        console.error("Validation failed: Total liaison duration exceeds 24h period.");
-        liaisonValidationFailed = true;
-    }
-
-
-    if (vibratorValidationFailed || liaisonValidationFailed || stockValidationFailed) {
+    // Explicitly check the general error flags which are updated by useEffect
+     if (hasVibratorErrors || hasLiaisonErrors || hasStockErrors) {
         console.error("Validation failed: Invalid inputs detected in counters or stock.");
         // Optionally, provide user feedback (e.g., using a toast)
         // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les formulaires.", variant: "destructive" });
+
+        // Focus the first input with an error (example)
+        const firstVibratorErrorId = Object.keys(vibratorCounterErrors).find(id => vibratorCounterErrors[id]);
+        if (firstVibratorErrorId) {
+            document.getElementById(`vibrator-start-${firstVibratorErrorId}`)?.focus();
+            return;
+        }
+        const firstLiaisonErrorId = Object.keys(liaisonCounterErrors).find(id => liaisonCounterErrors[id]);
+         if (firstLiaisonErrorId) {
+             document.getElementById(`liaison-start-${firstLiaisonErrorId}`)?.focus();
+            return;
+         }
+         // Add similar logic for stock errors if needed
+
         return; // Stop submission
     }
 
@@ -478,14 +532,14 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     console.log("Submitting Activity Report:", {
         // selectedPoste, // Removed selectedPoste
         stops,
-        vibratorCounters: finalVibratorCounters, // Submit validated counters
-        liaisonCounters: finalLiaisonCounters, // Submit validated counters
-        stockEntries: finalStockEntries, // Submit validated stock entries
+        vibratorCounters, // Submit validated counters
+        liaisonCounters, // Submit validated counters
+        stockEntries, // Submit validated stock entries
         stockStartTime,
         totalDowntime,
         operatingTime,
-        totalVibratorMinutes: finalVibratorTotal, // Submit calculated totals
-        totalLiaisonMinutes: finalLiaisonTotal, // Submit calculated totals
+        totalVibratorMinutes, // Submit calculated totals
+        totalLiaisonMinutes, // Submit calculated totals
     });
     // TODO: Replace console.log with actual API call or state management update
     // e.g., await submitActivityReport({ ... });
@@ -610,7 +664,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes et les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
+                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -638,7 +692,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                             value={counter.poste}
                                             onValueChange={(value: Poste) => updateVibratorCounter(counter.id, "poste", value)}
                                             >
-                                            <SelectTrigger className={cn("h-8 text-sm", counter.error?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectTrigger className={cn("h-8 text-sm", vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
                                                 <SelectValue placeholder="Sélectionner" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -649,38 +703,40 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                         {counter.error?.includes("poste") && <p className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                         {vibratorCounterErrors[counter.id]?.includes("poste") && <p className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p>}
                                     </TableCell>
                                     <TableCell className="p-2">
                                     <Input
+                                        id={`vibrator-start-${counter.id}`} // Add ID for focusing
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal" // Hint for mobile keyboards
-                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.start}
                                         placeholder="Index début"
                                         onChange={(e) =>
                                         updateVibratorCounter(counter.id, "start", e.target.value)
                                         }
-                                        aria-invalid={!!counter.error}
-                                        aria-describedby={counter.error ? `error-vibrator-${counter.id}` : undefined}
+                                        aria-invalid={!!vibratorCounterErrors[counter.id]}
+                                        aria-describedby={vibratorCounterErrors[counter.id] ? `error-vibrator-${counter.id}` : undefined}
                                     />
-                                     {counter.error && !counter.error.includes("poste") && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                     {vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p>}
                                     </TableCell>
                                     <TableCell className="p-2">
                                     <Input
+                                        id={`vibrator-end-${counter.id}`} // Add ID for focusing
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.end}
                                         placeholder="Index fin"
                                         onChange={(e) =>
                                         updateVibratorCounter(counter.id, "end", e.target.value)
                                         }
-                                         aria-invalid={!!counter.error}
-                                         aria-describedby={counter.error ? `error-vibrator-${counter.id}` : undefined}
+                                         aria-invalid={!!vibratorCounterErrors[counter.id]}
+                                         aria-describedby={vibratorCounterErrors[counter.id] ? `error-vibrator-${counter.id}` : undefined}
                                     />
-                                    {/* Display error inline only if error exists and is on the 'end' field logic */}
-                                    {counter.error?.includes("Fin") || counter.error?.includes("Durée") ? <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p> : null}
+                                    {/* Display error inline only if error exists and is NOT related to poste selection */}
+                                    {vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") ? <p id={`error-vibrator-${counter.id}-end`} className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p> : null}
                                     </TableCell>
                                     <TableCell className="p-2 text-right">
                                     <Button
@@ -724,8 +780,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                      {hasLiaisonErrors && (
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                                Erreur(s) dans les compteurs liaison. Vérifiez les postes et les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
+                             <AlertDescription>
+                                Erreur(s) dans les compteurs liaison. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -753,7 +809,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                             value={counter.poste}
                                             onValueChange={(value: Poste) => updateLiaisonCounter(counter.id, "poste", value)}
                                             >
-                                            <SelectTrigger className={cn("h-8 text-sm", counter.error?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectTrigger className={cn("h-8 text-sm", liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
                                                 <SelectValue placeholder="Sélectionner" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -764,38 +820,40 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                         {counter.error?.includes("poste") && <p className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                         {liaisonCounterErrors[counter.id]?.includes("poste") && <p className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p>}
                                     </TableCell>
                                     <TableCell className="p-2">
                                     <Input
+                                        id={`liaison-start-${counter.id}`} // Add ID
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.start}
                                         placeholder="Index début"
                                         onChange={(e) =>
                                         updateLiaisonCounter(counter.id, "start", e.target.value)
                                         }
-                                        aria-invalid={!!counter.error}
-                                        aria-describedby={counter.error ? `error-liaison-${counter.id}` : undefined}
+                                        aria-invalid={!!liaisonCounterErrors[counter.id]}
+                                        aria-describedby={liaisonCounterErrors[counter.id] ? `error-liaison-${counter.id}` : undefined}
                                     />
-                                    {counter.error && !counter.error.includes("poste") && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                    {liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p>}
                                     </TableCell>
                                     <TableCell className="p-2">
                                     <Input
+                                        id={`liaison-end-${counter.id}`} // Add ID
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.end}
                                         placeholder="Index fin"
                                         onChange={(e) =>
                                         updateLiaisonCounter(counter.id, "end", e.target.value)
                                         }
-                                        aria-invalid={!!counter.error}
-                                        aria-describedby={counter.error ? `error-liaison-${counter.id}` : undefined}
+                                        aria-invalid={!!liaisonCounterErrors[counter.id]}
+                                        aria-describedby={liaisonCounterErrors[counter.id] ? `error-liaison-${counter.id}` : undefined}
                                     />
-                                     {/* Display error inline only if error exists and relates to Fin or Durée */}
-                                     {counter.error?.includes("Fin") || counter.error?.includes("Durée") ? <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p> : null }
+                                     {/* Display error inline only if error exists and is NOT related to poste selection */}
+                                     {liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") ? <p id={`error-liaison-${counter.id}-end`} className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p> : null }
                                     </TableCell>
                                     <TableCell className="p-2 text-right">
                                     <Button
@@ -863,7 +921,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">Poste</TableHead> {/* Added Poste Head */}
+                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">Poste</TableHead>{/* Added Poste Head */}
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">PARK</TableHead>
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[250px]">Type Produit</TableHead>
                             <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Quantité</TableHead>
