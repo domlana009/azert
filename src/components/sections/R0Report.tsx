@@ -23,18 +23,20 @@ import { AlertCircle } from "lucide-react"; // Icon for errors
 
 interface R0ReportProps {
   currentDate: string;
+   // TODO: Add prop for previous day's 3rd shift end counter when backend is available
+   // previousDayThirdShiftEnd?: number;
 }
 
 type Poste = "1er" | "2ème" | "3ème";
 const MAX_HOURS_PER_POSTE = 8;
 
-// Updated Poste times and order
+// Updated Poste times and order - IMPORTANT: Array order matters for validation logic
 const POSTE_TIMES: Record<Poste, string> = {
-  "3ème": "22:30 - 06:30",
-  "1er": "06:30 - 14:30",
-  "2ème": "14:30 - 22:30",
+  "1er": "06:30 - 14:30", // Index 0
+  "2ème": "14:30 - 22:30", // Index 1
+  "3ème": "22:30 - 06:30", // Index 2
 };
-const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
+const POSTE_ORDER: Poste[] = ["1er", "2ème", "3ème"]; // Match indexCompteurs array order
 
 // Define types for form data sections
 interface RepartitionItem {
@@ -56,8 +58,8 @@ interface FormData {
   machineEngins: string;
   sa: string;
   unite: string;
-  indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste
-  shifts: string[]; // Assuming shifts corresponds to postes 1er, 2eme, 3eme
+  indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste, ORDER MUST MATCH POSTE_ORDER
+  shifts: string[]; // Corresponds to postes 1er, 2eme, 3eme
   ventilation: { code: number; label: string; duree: string }[]; // Updated ventilation structure
   exploitation: Record<string, string>; // Use a record for exploitation data
   bulls: string[]; // Corresponds to 1er, 2eme, 3eme D manque bull - NOW USED FOR DISPLAYING GROSS HOURS
@@ -204,7 +206,8 @@ function formatHoursToHoursMinutes(totalHours: number): string {
 }
 
 
-export function R0Report({ currentDate }: R0ReportProps) {
+// Added type prop
+export function R0Report({ currentDate /*, previousDayThirdShiftEnd */ }: R0ReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
    // State to hold calculated gross hours per poste and total
    const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
@@ -222,7 +225,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
     machineEngins: "",
     sa: "",
     unite: "",
-    indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes
+    indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes, order: 1er, 2eme, 3eme
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times
     ventilation: ventilationData.map(item => ({ ...item, duree: "" })), // Initialize duration for ventilation items
     exploitation: exploitationLabels.reduce((acc, label) => ({ ...acc, [label]: "" }), {}), // Initialize exploitation fields
@@ -297,12 +300,6 @@ export function R0Report({ currentDate }: R0ReportProps) {
               newShifts[indexOrField] = value;
               newData.shifts = newShifts;
           }
-          // NOTE: Removed bulls section handler as it's now display-only
-          // else if (section === 'bulls' && typeof indexOrField === 'number') {
-          //      const newBulls = [...newData.bulls];
-          //     newBulls[indexOrField] = value;
-          //     newData.bulls = newBulls;
-          // }
           // Handle exploitation fields
           else if (section === 'exploitation' && typeof indexOrField === 'string' && indexOrField in newData.exploitation) {
               newData.exploitation = { ...newData.exploitation, [indexOrField]: value };
@@ -341,15 +338,24 @@ export function R0Report({ currentDate }: R0ReportProps) {
     };
 
     // Function to validate and calculate working hours from index compteurs
-    const validateAndCalculateCompteurHours = () => {
+     const validateAndCalculateCompteurHours = () => {
         let validationPassed = true;
-        const newErrors = ['', '', ''];
+        const newErrors = ['', '', '']; // Order: 1er, 2eme, 3eme
+        const previousDayThirdShiftEndParsed = NaN; // TODO: Replace with actual previous day value when available
+        // const previousDayThirdShiftEndParsed = previousDayThirdShiftEnd ? parseFloat(previousDayThirdShiftEnd) : NaN;
+
+
         const posteHours = formData.indexCompteurs.map((compteur, index) => {
-            const debut = parseFloat(compteur.debut);
-            const fin = parseFloat(compteur.fin);
+            const posteName = POSTE_ORDER[index];
+            const debutStr = compteur.debut;
+            const finStr = compteur.fin;
 
-            if (compteur.debut === '' && compteur.fin === '') return 0; // Skip empty fields
+            if (debutStr === '' && finStr === '') return 0; // Skip empty fields for calculation, but still validate consistency if others are filled
 
+            const debut = parseFloat(debutStr);
+            const fin = parseFloat(finStr);
+
+            // 1. Basic Validation (Numeric, Fin >= Debut, Duration <= Max)
             if (isNaN(debut) || isNaN(fin)) {
                 newErrors[index] = "Début et Fin doivent être des nombres.";
                 validationPassed = false;
@@ -364,8 +370,34 @@ export function R0Report({ currentDate }: R0ReportProps) {
             if (duration > MAX_HOURS_PER_POSTE) {
                  newErrors[index] = `Durée max ${MAX_HOURS_PER_POSTE}h dépassée.`;
                  validationPassed = false;
-                return 0; // Return 0 if validation fails
+                 return 0; // Return 0 if validation fails
             }
+
+            // 2. Sequential Validation (Check if current Debut matches previous Fin)
+            if (index > 0) { // Check against previous poste within the same day (2eme vs 1er, 3eme vs 2eme)
+                const prevIndex = index - 1;
+                const prevFinStr = formData.indexCompteurs[prevIndex]?.fin;
+                if (prevFinStr) { // Only validate if previous Fin exists
+                    const prevFin = parseFloat(prevFinStr);
+                    if (!isNaN(prevFin) && debut !== prevFin) {
+                        newErrors[index] = `Début (${debut}) doit correspondre à Fin (${prevFin}) du ${POSTE_ORDER[prevIndex]} Poste.`;
+                        validationPassed = false;
+                        return 0;
+                    }
+                }
+            } else if (index === 0) { // Special case for 1er Poste: check against previous day's 3eme Poste Fin
+                 // TODO: Uncomment and use when previousDayThirdShiftEnd is available
+                // if (!isNaN(previousDayThirdShiftEndParsed) && debut !== previousDayThirdShiftEndParsed) {
+                //    newErrors[index] = `Début (${debut}) doit correspondre à Fin (${previousDayThirdShiftEndParsed}) du 3ème Poste de la veille.`;
+                //    validationPassed = false;
+                //    return 0;
+                // } else if (isNaN(previousDayThirdShiftEndParsed)) {
+                //     // Optional: Handle missing previous day data (e.g., allow first entry, or show a specific warning)
+                //     console.warn("Fin du 3ème Poste de la veille non disponible pour validation.");
+                // }
+            }
+
+
              // Validation passed for this poste
             newErrors[index] = '';
             return duration;
@@ -419,7 +451,8 @@ export function R0Report({ currentDate }: R0ReportProps) {
     // Recalculate on index compteur change
     useEffect(() => {
         validateAndCalculateCompteurHours();
-    }, [formData.indexCompteurs]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.indexCompteurs /*, previousDayThirdShiftEnd */]); // Add dependency for cross-day validation later
 
      // Recalculate on ventilation duration change
     useEffect(() => {
@@ -438,6 +471,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                 "HEURES COMPTEUR": formattedNetHours
             }
         }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [calculatedHours.total, totalStopMinutes, counterErrors]); // Added counterErrors dependency
 
 
@@ -561,7 +595,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                   <Alert variant="destructive" className="mt-4">
                        <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                          Erreur dans les index compteurs. Veuillez vérifier les valeurs saisies (numériques, fin ≥ début, durée ≤ {MAX_HOURS_PER_POSTE}h par poste).
+                          Erreur dans les index compteurs. Vérifiez les valeurs et la continuité entre les postes (Fin précédent = Début suivant).
                       </AlertDescription>
                   </Alert>
               )}
@@ -896,3 +930,5 @@ export function R0Report({ currentDate }: R0ReportProps) {
     </Card>
   );
 }
+
+    
