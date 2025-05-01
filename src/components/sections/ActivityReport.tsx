@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card import
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Ensure Card is imported
 import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -222,7 +222,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Trash className="h-4 w-4" />
                          <span className="sr-only">Supprimer</span>
                       </Button>
-                    </td>
+                    </TableCell>
                   </TableRow>
                 ))}
                  {stops.length === 0 && (
