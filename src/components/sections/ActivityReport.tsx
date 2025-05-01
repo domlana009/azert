@@ -977,5 +977,3 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     </Card>
   );
 }
-
-    
