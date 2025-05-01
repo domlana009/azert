@@ -150,7 +150,7 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
     shifts: ["", "", ""], // For 6H30 F, 14H30 F, 22H30 F fields
     ventilation: data.ventilation.reduce((acc, item) => ({ ...acc, [item.code]: "" }), {}),
     bulls: ["", "", ""], // For Manque Bull 1er D, 2eme D, 3eme D
-    repartitionTravail: Array(3).fill({ chantier: "", temps: "", imputation: "" }),
+    repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
     exploitation: Object.keys(data.exploitation_codes).reduce((acc, key) => ({ ...acc, [key]: "" }), {}),
     personnel: { conducteur: "", graisseur: "", matricules: "" },
     tricone: { marque: "", serie: "", type: "", diametre: "", pose: "", depose: "", causeDepose: "", indexCompteur: "" },
@@ -174,15 +174,21 @@ export function AnotherPageReport({ currentDate }: AnotherPageReportProps) {
         } else if (section === 'exploitation' && typeof subFieldOrIndex === 'string') {
             newData.exploitation[subFieldOrIndex] = value;
         } else if (section === 'personnel' && typeof subFieldOrIndex === 'string' && (subFieldOrIndex === 'conducteur' || subFieldOrIndex === 'graisseur' || subFieldOrIndex === 'matricules')) {
-            newData.personnel[subFieldOrIndex] = value;
+             // Ensure personnel object exists before updating
+             newData.personnel = { ...newData.personnel, [subFieldOrIndex]: value };
         } else if (section === 'tricone' && typeof subFieldOrIndex === 'string' && subFieldOrIndex in newData.tricone) {
-             (newData.tricone as any)[subFieldOrIndex] = value;
+             // Ensure tricone object exists before updating
+             newData.tricone = { ...newData.tricone, [subFieldOrIndex as keyof typeof newData.tricone]: value };
         } else if (section === 'gasoil' && typeof subFieldOrIndex === 'string' && subFieldOrIndex in newData.gasoil) {
-             (newData.gasoil as any)[subFieldOrIndex] = value;
+             // Ensure gasoil object exists before updating
+             newData.gasoil = { ...newData.gasoil, [subFieldOrIndex as keyof typeof newData.gasoil]: value };
         } else if (section === 'repartitionTravail' && typeof subFieldOrIndex === 'number' && repartitionField) {
-            const newRepartition = [...newData.repartitionTravail];
-            newRepartition[subFieldOrIndex] = { ...newRepartition[subFieldOrIndex], [repartitionField]: value };
-            newData.repartitionTravail = newRepartition;
+             // Ensure the array and item exist
+            if (newData.repartitionTravail && newData.repartitionTravail[subFieldOrIndex]) {
+                const newRepartition = [...newData.repartitionTravail];
+                newRepartition[subFieldOrIndex] = { ...newRepartition[subFieldOrIndex], [repartitionField]: value };
+                newData.repartitionTravail = newRepartition;
+            }
         } else if (section === 'shifts' && typeof subFieldOrIndex === 'number') {
             const newShifts = [...newData.shifts];
             newShifts[subFieldOrIndex] = value;

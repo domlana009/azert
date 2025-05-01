@@ -40,6 +40,11 @@ interface RepartitionItem {
 }
 
 interface FormData {
+  entree: string;
+  secteur: string;
+  rapportNo: string;
+  machineEngins: string;
+  sa: string;
   unite: string;
   indexCompteur: string;
   shifts: string[]; // Assuming shifts corresponds to postes 1er, 2eme, 3eme
@@ -149,12 +154,17 @@ export function R0Report({ currentDate }: R0ReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
 
   const [formData, setFormData] = useState<FormData>({
+    entree: "",
+    secteur: "",
+    rapportNo: "",
+    machineEngins: "",
+    sa: "",
     unite: "",
     indexCompteur: "",
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times? Needs clarification
     ventilation: Array(data.ventilation.length).fill(""),
     bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D manque bull?
-    repartitionTravail: Array(3).fill({ chantier: "", temps: "", imputation: "" }),
+    repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
     tricone: {
       pose: "",
       depose: "",
@@ -178,6 +188,8 @@ export function R0Report({ currentDate }: R0ReportProps) {
       field?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil']
     ) => {
       const { name, value } = e.target;
+       // Use name attribute for top-level fields if available and section matches a key in FormData
+      const targetName = (name && section in formData && typeof (formData as any)[section] === 'string') ? name : section;
 
       setFormData(prevData => {
           let newData = { ...prevData };
@@ -187,13 +199,17 @@ export function R0Report({ currentDate }: R0ReportProps) {
               newVentilation[index] = value;
               newData.ventilation = newVentilation;
           } else if (section === 'repartitionTravail' && index !== undefined && field) {
-              const newRepartition = [...newData.repartitionTravail];
-              newRepartition[index] = { ...newRepartition[index], [field]: value };
-              newData.repartitionTravail = newRepartition;
-          } else if (section === 'tricone' && field) {
-              newData.tricone = { ...newData.tricone, [field]: value };
-          } else if (section === 'gasoil' && field) {
-               newData.gasoil = { ...newData.gasoil, [field]: value };
+              // Ensure the array exists and the index is valid
+              if (newData.repartitionTravail && newData.repartitionTravail[index]) {
+                  const newRepartition = [...newData.repartitionTravail];
+                  // Ensure the item at the index is an object before spreading
+                  newRepartition[index] = { ...newRepartition[index], [field]: value };
+                  newData.repartitionTravail = newRepartition;
+              }
+          } else if (section === 'tricone' && field && typeof field === 'string' && field in newData.tricone) {
+              newData.tricone = { ...newData.tricone, [field as keyof typeof newData.tricone]: value };
+          } else if (section === 'gasoil' && field && typeof field === 'string' && field in newData.gasoil) {
+               newData.gasoil = { ...newData.gasoil, [field as keyof typeof newData.gasoil]: value };
           } else if (section === 'shifts' && index !== undefined) {
               const newShifts = [...newData.shifts];
               newShifts[index] = value;
@@ -203,14 +219,12 @@ export function R0Report({ currentDate }: R0ReportProps) {
               newBulls[index] = value;
               newData.bulls = newBulls;
           }
-          else if (typeof section === 'string' && !(section in prevData) ) {
-             // Handles top-level fields like unite, indexCompteur etc. passed directly as section
-             // And machine fields
-             (newData as any)[section] = value;
+          // Handle top-level string fields directly
+          else if (typeof targetName === 'string' && targetName in newData && typeof (newData as any)[targetName] === 'string') {
+             (newData as any)[targetName] = value;
           }
-          else if (typeof section === 'string' && name in newData && typeof (newData as any)[name] === 'string') {
-             // Fallback for direct field names if previous conditions didn't match
-             (newData as any)[name] = value;
+          else {
+             console.warn("Unhandled input change:", { section, index, field, name, value });
           }
           return newData;
       });
@@ -224,8 +238,8 @@ export function R0Report({ currentDate }: R0ReportProps) {
     ) => {
      setFormData(prevData => {
         let newData = { ...prevData };
-        if (section === 'tricone' && field) {
-            newData.tricone = { ...newData.tricone, [field]: value };
+        if (section === 'tricone' && field && typeof field === 'string' && field in newData.tricone) {
+            newData.tricone = { ...newData.tricone, [field as keyof typeof newData.tricone]: value };
         }
         // Add other select handlers here if needed
         return newData;
@@ -237,33 +251,33 @@ export function R0Report({ currentDate }: R0ReportProps) {
     <Card className="bg-card text-card-foreground rounded-lg shadow-md p-6 mb-6">
       <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b mb-6">
         <CardTitle className="text-xl font-bold">
-          Rapport R0
+          Rapport Journalier Détaillé (R0)
         </CardTitle>
         <span className="text-sm text-muted-foreground">{currentDate}</span>
       </CardHeader>
 
       <CardContent className="p-0 space-y-6">
          {/* Section: Entête Info */}
-         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b pb-4">
+         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-b pb-4">
               <div>
                 <Label htmlFor="entree">Entrée</Label>
-                <Input id="entree" name="entree" placeholder="ENTREE" />
+                <Input id="entree" name="entree" placeholder="ENTREE" value={formData.entree} onChange={(e) => handleInputChange(e, 'entree')} />
               </div>
               <div>
                 <Label htmlFor="secteur">Secteur</Label>
-                <Input id="secteur" name="secteur" placeholder="SECTEUR" />
+                <Input id="secteur" name="secteur" placeholder="SECTEUR" value={formData.secteur} onChange={(e) => handleInputChange(e, 'secteur')}/>
               </div>
                <div>
                 <Label htmlFor="rapport-no">Rapport (R°)</Label>
-                <Input id="rapport-no" name="rapportNo" placeholder="RAPPORT (R°)" />
+                <Input id="rapport-no" name="rapportNo" placeholder="N°" value={formData.rapportNo} onChange={(e) => handleInputChange(e, 'rapportNo')} />
               </div>
               <div>
                 <Label htmlFor="machine-engins">Machine / Engins</Label>
-                <Input id="machine-engins" name="machineEngins" placeholder="MACHINE / ENGINS" />
+                <Input id="machine-engins" name="machineEngins" placeholder="Nom ou Code" value={formData.machineEngins} onChange={(e) => handleInputChange(e, 'machineEngins')} />
               </div>
                <div>
                 <Label htmlFor="sa">S.A</Label>
-                <Input id="sa" name="sa" placeholder="S.A" />
+                <Input id="sa" name="sa" placeholder="S.A" value={formData.sa} onChange={(e) => handleInputChange(e, 'sa')} />
               </div>
             </div>
 
@@ -409,7 +423,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
         {/* Section: Répartition du Temps de Travail Pur */}
         <div className="space-y-4">
           <h3 className="font-semibold text-lg text-foreground">Répartition du Temps de Travail Pur</h3>
-            {POSTE_ORDER.map((poste, index) => (
+            {POSTE_ORDER.map((poste, index) => ( // Ensure index matches the intended poste data
                 <div key={poste} className="p-4 border rounded-lg space-y-3">
                      <h4 className="font-medium text-foreground">{poste} Poste</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
