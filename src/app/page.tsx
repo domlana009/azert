@@ -13,7 +13,7 @@ import {
   ActivityReport,
   TruckTracking,
   R0Report,
-  AnotherPageReport, // Added AnotherPageReport import
+  AnotherPageReport,
 } from "@/components/sections"; // Adjusted import path
 import Link from "next/link";
 
@@ -97,13 +97,13 @@ export default function Home() {
                   {activeTab === "activity-report" && (
                     <ActivityReport currentDate={getFormattedDate(currentDate, dateOptions)} />
                   )}
-                   {activeTab === "R0-report" && ( // Changed ID to match navigation
+                   {activeTab === "r0-report" && ( // Changed ID to match navigation
                     <R0Report currentDate={getFormattedDate(currentDate, dateOptions)} />
                   )}
                   {activeTab === "truck-tracking" && (
                     <TruckTracking currentDate={getFormattedDate(currentDate, dateOptions)} />
                   )}
-                  {activeTab === "another-page" && ( // Added condition for another-page
+                  {activeTab === "another-page" && ( // Check for 'another-page' ID
                     <AnotherPageReport currentDate={getFormattedDate(currentDate, dateOptions)} />
                   )}
                </>
