@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card import
 import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
