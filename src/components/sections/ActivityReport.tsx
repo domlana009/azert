@@ -1,13 +1,56 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Import useEffect
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+// Helper function to parse duration strings into minutes (copied from DailyReport)
+function parseDurationToMinutes(duration: string): number {
+  if (!duration) return 0;
+  const cleaned = duration.replace(/[^0-9Hh:·\s]/g, '').trim();
+  let hours = 0;
+  let minutes = 0;
+  let match = cleaned.match(/^(?:(\d{1,2})\s?[Hh:·]\s?)?(\d{1,2})$/);
+  if (match) {
+    hours = match[1] ? parseInt(match[1], 10) : 0;
+    minutes = parseInt(match[2], 10);
+    return (hours * 60) + minutes;
+  }
+  match = cleaned.match(/^(\d{1,2})\s?[Hh]$/);
+  if (match) {
+    hours = parseInt(match[1], 10);
+    return hours * 60;
+  }
+  match = cleaned.match(/^(\d+)$/);
+  if (match) {
+    minutes = parseInt(match[1], 10);
+    return minutes;
+  }
+  console.warn(`Could not parse duration: "${duration}"`);
+  return 0;
+}
+
+// Helper function to format minutes into HHh MMm string (copied from DailyReport)
+function formatMinutesToHoursMinutes(totalMinutes: number): string {
+  if (isNaN(totalMinutes) || totalMinutes < 0) return "0h 0m";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}m`;
+}
+
 
 interface ActivityReportProps {
   currentDate: string;
@@ -27,7 +70,6 @@ interface Stop {
   id: string;
   duration: string;
   nature: string;
-  // Removed hm and ha
 }
 
 interface Counter {
@@ -39,23 +81,38 @@ interface Counter {
 }
 
 export function ActivityReport({ currentDate }: ActivityReportProps) {
-  const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+  const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
 
+  const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
   const [stops, setStops] = useState<Stop[]>([
-    { id: crypto.randomUUID(), duration: "4:1o", nature: "Manque Produit" }, // Removed hm, ha
+    { id: crypto.randomUUID(), duration: "4h 10", nature: "Manque Produit" },
     {
       id: crypto.randomUUID(),
-      duration: "4:1v",
+      duration: "1h 15", // Changed format for testing
       nature: "Attent Saturation SiCo",
-    }, // Removed hm, ha
+    },
   ]);
-
   const [counters, setCounters] = useState<Counter[]>([
     { id: crypto.randomUUID(), post: "Poste3", start: "93h41r", end: "9395,30", total: "0:45" },
   ]);
 
+  const [totalDowntime, setTotalDowntime] = useState(0);
+  const [operatingTime, setOperatingTime] = useState(TOTAL_SHIFT_MINUTES);
+
+
+  // Calculate total downtime and operating time whenever stops change
+  useEffect(() => {
+    const calculatedDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
+    setTotalDowntime(calculatedDowntime);
+
+    const calculatedOperatingTime = TOTAL_SHIFT_MINUTES - calculatedDowntime;
+    setOperatingTime(calculatedOperatingTime >= 0 ? calculatedOperatingTime : 0); // Ensure non-negative
+
+  }, [stops, TOTAL_SHIFT_MINUTES]);
+
+
   const addStop = () => {
-    setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]); // Removed hm, ha
+    setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]);
   };
 
   const addCounter = () => {
@@ -81,18 +138,18 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
 
   return (
-    <Card className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-      <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b dark:border-gray-700 mb-6">
-        <CardTitle className="text-xl font-bold text-gray-800 dark:text-gray-200">
+    <Card className="bg-card text-card-foreground rounded-lg shadow-md p-6 mb-6">
+      <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b mb-6">
+        <CardTitle className="text-xl font-bold">
           RAPPORT D'ACTIVITÉ TNR
         </CardTitle>
-        <span className="text-sm text-gray-500 dark:text-gray-400">{currentDate}</span>
+        <span className="text-sm text-muted-foreground">{currentDate}</span>
       </CardHeader>
 
-      <CardContent className="p-0">
+      <CardContent className="p-0 space-y-6"> {/* Added space-y-6 */}
          {/* Poste Selection */}
-         <div className="mb-6 space-y-2">
-            <Label className="text-foreground dark:text-gray-300">Poste</Label>
+         <div className="space-y-2"> {/* Replaced mb-6 */}
+            <Label className="text-foreground">Poste</Label>
             <RadioGroup
               value={selectedPoste} // Controlled component
               onValueChange={(value: Poste) => setSelectedPoste(value)}
@@ -101,44 +158,51 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
               {POSTE_ORDER.map((poste) => ( // Use defined order
                 <div key={poste} className="flex items-center space-x-2 mb-2">
                   <RadioGroupItem value={poste} id={`activity-poste-${poste}`} />
-                  <Label htmlFor={`activity-poste-${poste}`} className="font-normal text-foreground dark:text-gray-300">
-                    {poste} Poste <span className="text-muted-foreground dark:text-gray-400 text-xs">({POSTE_TIMES[poste]})</span>
+                  <Label htmlFor={`activity-poste-${poste}`} className="font-normal text-foreground">
+                    {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
                   </Label>
                 </div>
               ))}
             </RadioGroup>
           </div>
 
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Arrêts</h3>
+        {/* Arrêts Section */}
+        <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
+           <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-foreground">Arrêts</h3>
+              <Button variant="link" onClick={addStop} className="text-primary text-sm p-0 h-auto">
+                + Ajouter Arrêt
+              </Button>
+            </div>
+
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100 dark:bg-gray-700">
-                <tr>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Durée
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[120px]">
+                    Durée (ex: 1h 30)
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
-                  </th>
-                  {/* Removed HM and HA headers */}
-                  <th className="p-2 text-right text-sm font-medium text-gray-600 dark:text-gray-400 w-[50px]"></th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {stops.map((stop) => (
-                  <tr key={stop.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="p-2">
+                  <TableRow key={stop.id} className="hover:bg-muted/50">
+                    <TableCell className="p-2">
                       <Input
                         type="text"
-                        className="w-24 h-8 text-sm"
+                        className="w-full h-8 text-sm" // w-24 removed -> w-full
+                        placeholder="ex: 1h 30"
                         value={stop.duration}
                         onChange={(e) =>
                           updateStop(stop.id, "duration", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
                         className="w-full h-8 text-sm"
@@ -147,9 +211,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                           updateStop(stop.id, "nature", e.target.value)
                         }
                       />
-                    </td>
-                    {/* Removed HM and HA inputs */}
-                    <td className="p-2 text-right">
+                    </TableCell>
+                    <TableCell className="p-2 text-right">
                        <Button
                         variant="ghost"
                         size="icon"
@@ -160,49 +223,66 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                          <span className="sr-only">Supprimer</span>
                       </Button>
                     </td>
-                  </tr>
+                  </TableRow>
                 ))}
                  {stops.length === 0 && (
-                    <tr className="border-b dark:border-gray-700">
-                         {/* Adjusted colSpan to 3 */}
-                        <td colSpan={3} className="text-center text-muted-foreground dark:text-gray-500 p-4">
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
                             Aucun arrêt ajouté.
-                        </td>
-                    </tr>
+                        </TableCell>
+                    </TableRow>
                  )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-          <Button variant="link" onClick={addStop} className="text-primary dark:text-blue-400 text-sm mt-2 p-0 h-auto">
-            + Ajouter Arrêt
-          </Button>
+           <div className="mt-2 text-right text-sm text-muted-foreground">
+              Total Arrêts: <strong>{formatMinutesToHoursMinutes(totalDowntime)}</strong>
+           </div>
         </div>
 
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Compteurs Vibreurs</h3>
+         {/* Operating Time Display */}
+         <div className="p-4 border rounded-lg bg-muted/30">
+            <h3 className="font-semibold text-lg text-foreground mb-2">Temps de Fonctionnement (8h - Arrêts)</h3>
+            <div className="space-y-1">
+                <Label htmlFor="total-operating-tnr" className="text-sm text-muted-foreground">
+                    Temps de Fonctionnement Estimé
+                </Label>
+                <Input id="total-operating-tnr" type="text" value={formatMinutesToHoursMinutes(operatingTime)} className="h-9 bg-input font-medium" readOnly />
+            </div>
+        </div>
+
+
+        {/* Compteurs Vibreurs Section */}
+        <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
+           <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-foreground">Compteurs Vibreurs</h3>
+               <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={addCounter}>
+                + Ajouter Vibreur
+              </Button>
+            </div>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100 dark:bg-gray-700">
-                <tr>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Poste
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Début
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Fin
-                  </th>
-                  <th className="p-2 text-left text-sm font-medium text-gray-600 dark:text-gray-400">
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Total
-                  </th>
-                  <th className="p-2 text-right text-sm font-medium text-gray-600 dark:text-gray-400 w-[50px]"></th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {counters.map((counter) => (
-                  <tr key={counter.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="p-2">
+                  <TableRow key={counter.id} className="hover:bg-muted/50">
+                    <TableCell className="p-2">
                       <Input
                         type="text"
                         className="w-full h-8 text-sm"
@@ -211,8 +291,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                           updateCounter(counter.id, "post", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
                         className="w-full h-8 text-sm"
@@ -221,8 +301,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                           updateCounter(counter.id, "start", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
                          className="w-full h-8 text-sm"
@@ -231,8 +311,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                           updateCounter(counter.id, "end", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2">
+                    </TableCell>
+                    <TableCell className="p-2">
                       <Input
                         type="text"
                          className="w-24 h-8 text-sm"
@@ -241,8 +321,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                           updateCounter(counter.id, "total", e.target.value)
                         }
                       />
-                    </td>
-                    <td className="p-2 text-right">
+                    </TableCell>
+                    <TableCell className="p-2 text-right">
                        <Button
                         variant="ghost"
                         size="icon"
@@ -252,25 +332,23 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Trash className="h-4 w-4" />
                         <span className="sr-only">Supprimer</span>
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                  {counters.length === 0 && (
-                    <tr className="border-b dark:border-gray-700">
-                        <td colSpan={5} className="text-center text-muted-foreground dark:text-gray-500 p-4">
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground p-4">
                             Aucun compteur ajouté.
-                        </td>
-                    </tr>
+                        </TableCell>
+                    </TableRow>
                  )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-          <div className="mt-2 flex justify-between items-center">
-            <Button variant="link" className="text-primary dark:text-blue-400 text-sm p-0 h-auto" onClick={addCounter}>
-              + Ajouter Vibreur
-            </Button>
+          <div className="mt-2 flex justify-end items-center"> {/* Removed justify-between */}
+            {/* Removed Add button as it's now at the top */}
             <div className="flex items-center">
-              <span className="text-sm text-gray-600 dark:text-gray-400 mr-2">
+              <span className="text-sm text-muted-foreground mr-2">
                 Total Vibreurs:
               </span>
               <Input type="text" className="w-24 h-8 text-sm" defaultValue="06H55" />
@@ -278,68 +356,70 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
           </div>
         </div>
 
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Stock</h3>
+        {/* Stock Section */}
+        <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
+          <h3 className="font-semibold text-lg text-foreground">Stock</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border dark:border-gray-600">
-              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">PARK 1</h4>
+            <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
+              <h4 className="font-medium text-foreground mb-2">PARK 1</h4>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                  <Label className="block text-muted-foreground text-xs mb-1">
                     NORMAL
-                  </label>
+                  </Label>
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                  <Label className="block text-muted-foreground text-xs mb-1">
                     OCEANE
-                  </label>
+                  </Label>
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                  <Label className="block text-muted-foreground text-xs mb-1">
                     PB30
-                  </label>
+                  </Label>
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border dark:border-gray-600">
-              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">PARK 2</h4>
+            <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
+              <h4 className="font-medium text-foreground mb-2">PARK 2</h4>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                  <Label className="block text-muted-foreground text-xs mb-1">
                     NORMAL
-                  </label>
+                  </Label>
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                  <Label className="block text-muted-foreground text-xs mb-1">
                     OCEANE
-                  </label>
+                  </Label>
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                  <Label className="block text-muted-foreground text-xs mb-1">
                     PB30
-                  </label>
+                  </Label>
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
               </div>
               <div className="mt-2">
-                <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">
+                <Label className="block text-muted-foreground text-xs mb-1">
                   Poste
-                </label>
+                </Label>
                 <Input type="text" className="h-8 text-sm" defaultValue="3+1+2" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end space-x-3">
-          <Button variant="outline">Enregistrer</Button>
-          <Button>Soumettre</Button>
+        {/* Action Buttons */}
+        <div className="mt-8 flex justify-end space-x-3"> {/* Added margin-top */}
+          <Button variant="outline">Enregistrer Brouillon</Button>
+          <Button>Soumettre Rapport</Button>
         </div>
       </CardContent>
     </Card>
