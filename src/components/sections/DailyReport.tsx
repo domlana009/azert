@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// Removed RadioGroup imports as they are no longer used
+// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -26,15 +27,10 @@ interface ModuleStop {
   nature: string;
 }
 
-type Poste = "1er" | "2ème" | "3ème";
-
-// Updated Poste times and order
-const POSTE_TIMES: Record<Poste, string> = {
-  "3ème": "22:30 - 06:30",
-  "1er": "06:30 - 14:30",
-  "2ème": "14:30 - 22:30",
-};
-const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
+// Removed Poste type and constants as they are no longer used
+// type Poste = "1er" | "2ème" | "3ème";
+// const POSTE_TIMES: Record<Poste, string> = { ... };
+// const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
 
 
 // Helper function to parse duration strings into minutes
@@ -78,9 +74,9 @@ function parseDurationToMinutes(duration: string): number {
 
 // Helper function to format minutes into HHh MMm string
 function formatMinutesToHoursMinutes(totalMinutes: number): string {
-    if (isNaN(totalMinutes) || totalMinutes < 0) return "0h 0m";
+    if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m"; // Return 0 if non-positive
     const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+    const minutes = Math.round(totalMinutes % 60); // Round minutes
     return `${hours}h ${minutes}m`;
 }
 
@@ -88,7 +84,8 @@ function formatMinutesToHoursMinutes(totalMinutes: number): string {
 export function DailyReport({ currentDate }: DailyReportProps) {
   const TOTAL_PERIOD_MINUTES = 24 * 60; // 24-hour period
 
-  const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+  // Removed selectedPoste state
+  // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er");
 
   const [module1Stops, setModule1Stops] = useState<ModuleStop[]>([
     {
@@ -179,27 +176,13 @@ export function DailyReport({ currentDate }: DailyReportProps) {
       </CardHeader>
 
       <CardContent className="p-0 space-y-6">
-        <div className="grid grid-cols-1 gap-6">
-          {/* Poste Selection */}
+        {/* Removed Poste Selection Section */}
+        {/* <div className="grid grid-cols-1 gap-6">
           <div className="space-y-2">
             <Label className="text-foreground">Poste</Label>
-            <RadioGroup
-              value={selectedPoste} // Controlled component
-              onValueChange={(value: Poste) => setSelectedPoste(value)}
-              className="flex flex-wrap space-x-4 pt-2" // Added flex-wrap
-            >
-              {POSTE_ORDER.map((poste) => ( // Use defined order
-                <div key={poste} className="flex items-center space-x-2 mb-2"> {/* Added mb-2 */}
-                  <RadioGroupItem value={poste} id={`poste-${poste}`} />
-                  <Label htmlFor={`poste-${poste}`} className="font-normal">
-                    {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <RadioGroup ... > ... </RadioGroup>
           </div>
-        </div>
-
+        </div> */}
 
         {/* Module 1 Section */}
         <div className="space-y-4 p-4 border rounded-lg bg-card">
@@ -357,21 +340,21 @@ export function DailyReport({ currentDate }: DailyReportProps) {
               <Label htmlFor="total-m1-operating" className="text-sm text-muted-foreground">
                 Module 1 Fonctionnement
               </Label>
-              <Input id="total-m1-operating" type="text" value={formatMinutesToHoursMinutes(module1OperatingTime)} className="h-9 bg-input font-medium" readOnly />
+              <Input id="total-m1-operating" type="text" value={formatMinutesToHoursMinutes(module1OperatingTime)} className="h-9 bg-input font-medium" readOnly tabIndex={-1} />
             </div>
              <div className="space-y-1">
               <Label htmlFor="total-m2-operating" className="text-sm text-muted-foreground">
                 Module 2 Fonctionnement
               </Label>
-              <Input id="total-m2-operating" type="text" value={formatMinutesToHoursMinutes(module2OperatingTime)} className="h-9 bg-input font-medium" readOnly />
+              <Input id="total-m2-operating" type="text" value={formatMinutesToHoursMinutes(module2OperatingTime)} className="h-9 bg-input font-medium" readOnly tabIndex={-1} />
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="mt-8 flex justify-end space-x-3">
-          <Button variant="outline">Enregistrer Brouillon</Button>
-          <Button>Soumettre Rapport</Button>
+          <Button type="button" variant="outline">Enregistrer Brouillon</Button> {/* Changed to type="button" */}
+          <Button type="submit">Soumettre Rapport</Button> {/* Changed to type="submit" */}
         </div>
       </CardContent>
     </Card>
