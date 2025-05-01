@@ -45,7 +45,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("daily-report");
   // Renamed currentDate to selectedDate and initialized with today's date
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default Poste - This seems unused here now?
+  // selectedPoste state seems unused in this component's main logic after previous changes. Removed it for now.
+  // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er");
   const { user, loading, logout } = useAuth(); // Use the auth hook
   const router = useRouter(); // Initialize router
 
@@ -83,6 +84,11 @@ export default function Home() {
      router.push('/login'); // Redirect if not logged in
      return null; // Return null to prevent rendering the rest of the page during redirect
   }
+
+  // TODO: Fetch previous day's 3rd shift end counter data here based on selectedDate
+  // Example placeholder:
+  const previousDayThirdShiftEnd = "9341.0"; // Replace with actual fetched data or null
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -159,10 +165,10 @@ export default function Home() {
                   )}
                   {activeTab === "activity-report" && (
                     // Pass formatted date string or the Date object depending on component needs
-                    <ActivityReport selectedDate={selectedDate} previousDayThirdShiftEnd={null}/> // Pass Date object, add previousDay prop
+                    <ActivityReport selectedDate={selectedDate} previousDayThirdShiftEnd={previousDayThirdShiftEnd}/> // Pass Date object, add previousDay prop
                   )}
                    {activeTab === "r0-report" && (
-                    <R0Report selectedDate={selectedDate} previousDayThirdShiftEnd={null}/> // Pass Date object, add previousDay prop
+                    <R0Report selectedDate={selectedDate} previousDayThirdShiftEnd={previousDayThirdShiftEnd}/> // Pass Date object, add previousDay prop
                   )}
                   {activeTab === "truck-tracking" && (
                     <TruckTracking selectedDate={selectedDate} /> // Pass Date object
