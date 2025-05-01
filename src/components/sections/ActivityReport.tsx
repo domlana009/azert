@@ -149,7 +149,7 @@ interface StockEntry {
   type: StockType | ''; // Only product types
   quantity: string; // For NORMAL, OCEANE, PB30
   startTime: string; // For HEURE DEBUT STOCK - kept separate for clarity
-  error?: string; // Optional error for poste selection
+  // Error is now calculated dynamically during render
 }
 
 const MAX_HOURS_PER_POSTE = 8; // Max hours for a standard shift
@@ -240,13 +240,13 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
         const currentIndex = counters.findIndex(c => c.id === counterId);
         if (currentIndex === -1 || !currentPoste) return undefined; // Cannot validate sequence without index or poste
 
-        const posteIndex = POSTE_ORDER.indexOf(currentPoste); // 0 for 1er, 1 for 2eme, 2 for 3eme
+        const posteIndex = POSTE_ORDER.indexOf(currentPoste); // 0 for 3eme, 1 for 1er, 2 for 2eme
 
         // Find the counter for the previous logical poste (handling wrap-around for 1er)
         let previousCounter: Counter | LiaisonCounter | undefined = undefined;
         let expectedPreviousFinStr: string | undefined | null = undefined; // Can be null if prev day data is null
 
-        if (posteIndex === 0) { // Current is 1er Poste
+        if (posteIndex === 1) { // Current is 1er Poste
             // Need previous day's 3rd shift end (passed as prop for vibrators)
             if (type === 'vibrator') {
                 expectedPreviousFinStr = previousDayData; // Use prop
@@ -262,11 +262,13 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                  expectedPreviousFinStr = previousCounter?.end;
             }
 
-        } else if (posteIndex > 0) { // Current is 2eme or 3eme Poste
+        } else if (posteIndex > 1) { // Current is 2eme or 3eme Poste
              const previousPoste = POSTE_ORDER[posteIndex - 1];
              // Find a counter with the previous poste in the *same list* (vibrator or liaison)
              previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === previousPoste);
              expectedPreviousFinStr = previousCounter?.end;
+        } else if (posteIndex === 0) { // Current is 3eme Poste - No sequential check needed within the day
+             expectedPreviousFinStr = null; // Explicitly skip check
         }
 
 
@@ -279,11 +281,12 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                  // For now, let's skip the sequential check if the reference is invalid
                  // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid.`);
             } else if (startVal !== null && startVal !== expectedPreviousFin) {
-                 const prevPosteName = posteIndex === 0 ? "3ème (veille)" : POSTE_ORDER[posteIndex - 1];
+                 const prevPosteName = posteIndex === 1 ? "3ème (veille)" : POSTE_ORDER[posteIndex - 1];
                  return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFin}) du ${prevPosteName} Poste.`;
              }
         } else if (expectedPreviousFinStr === null) {
              // Previous data explicitly not available (e.g., first day or no 3rd shift prev day)
+             // Or current is 3rd poste, no intra-day prev check.
              // No sequential validation possible/needed for this boundary.
          }
          // else: No previous counter found, or previous 'fin' is empty, or current 'start' is empty - skip sequence check.
@@ -363,20 +366,13 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
 
 
    // Check for stock entry errors (poste selection)
-  useEffect(() => {
-    // An entry is considered 'active' if park, type, or quantity has a value.
-    const activeEntryNeedsPoste = stockEntries.some(entry =>
-        (entry.park || entry.type || entry.quantity) && !entry.poste
-    );
-    setHasStockErrors(activeEntryNeedsPoste);
-
-    // Update individual entry errors (optional, if needed for inline display)
-    setStockEntries(prevEntries => prevEntries.map(entry => ({
-        ...entry,
-        error: (entry.park || entry.type || entry.quantity) && !entry.poste ? "Veuillez sélectionner un poste." : undefined
-    })));
-
-  }, [stockEntries]);
+   // Calculate hasStockErrors directly based on stockEntries state
+    useEffect(() => {
+      const activeEntryNeedsPoste = stockEntries.some(entry =>
+          (entry.park || entry.type || entry.quantity) && !entry.poste
+      );
+      setHasStockErrors(activeEntryNeedsPoste);
+    }, [stockEntries]);
 
 
   const addStop = () => {
@@ -477,23 +473,26 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
 
 
  // Function to update stock entry - simplified, includes poste
- const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id' | 'error'>, value: string | boolean, parkOrType?: Park | StockType) => {
+ const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id'>, value: string | boolean, parkOrType?: Park | StockType) => {
     setStockEntries(stockEntries.map(entry => {
       if (entry.id === id) {
          const updatedEntry = { ...entry, [field]: value };
-         // No immediate error setting here, let useEffect handle validation based on state
-         updatedEntry.error = undefined; // Clear any previous inline error
 
          // Reset dependent fields or validate poste
          if (field === 'poste') {
              updatedEntry.park = ''; // Reset park, type, quantity when poste changes
              updatedEntry.type = '';
              updatedEntry.quantity = '';
+             updatedEntry.startTime = ''; // Also reset startTime if applicable?
          } else if (field === 'park') {
              updatedEntry.type = ''; // Reset type/quantity when park changes
              updatedEntry.quantity = '';
+              updatedEntry.startTime = ''; // Reset start time if park changes
          } else if (field === 'type') {
             updatedEntry.quantity = ''; // Reset quantity when type changes
+         } else if (field === 'startTime') {
+              // Maybe reset other fields if start time is the primary identifier?
+              // Depending on logic, might need to ensure park/type are cleared if startTime is entered first
          }
 
          return updatedEntry;
@@ -524,6 +523,13 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
             return;
          }
          // Add similar logic for stock errors if needed
+         const firstStockErrorEntry = stockEntries.find(entry => (entry.park || entry.type || entry.quantity) && !entry.poste);
+         if (firstStockErrorEntry) {
+             // Focus the poste select for the first erroneous stock entry
+             document.getElementById(`stock-poste-trigger-${firstStockErrorEntry.id}`)?.focus();
+             return;
+         }
+
 
         return; // Stop submission
     }
@@ -692,7 +698,7 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                                             value={counter.poste}
                                             onValueChange={(value: Poste) => updateVibratorCounter(counter.id, "poste", value)}
                                             >
-                                            <SelectTrigger className={cn("h-8 text-sm", vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectTrigger id={`vibrator-poste-trigger-${counter.id}`} className={cn("h-8 text-sm", vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
                                                 <SelectValue placeholder="Sélectionner" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -809,7 +815,7 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                                             value={counter.poste}
                                             onValueChange={(value: Poste) => updateLiaisonCounter(counter.id, "poste", value)}
                                             >
-                                            <SelectTrigger className={cn("h-8 text-sm", liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectTrigger id={`liaison-poste-trigger-${counter.id}`} className={cn("h-8 text-sm", liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
                                                 <SelectValue placeholder="Sélectionner" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -929,87 +935,91 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {stockEntries.map((entry) => (
-                            <TableRow key={entry.id} className="hover:bg-muted/50">
-                                {/* Poste Selection Cell */}
-                                <TableCell className="p-2 align-top">
-                                    <Select
-                                        value={entry.poste}
-                                        onValueChange={(value: Poste) => updateStockEntry(entry.id, "poste", value)}
-                                        >
-                                        <SelectTrigger className={cn("h-8 text-sm w-[130px]", entry.error && "border-destructive focus-visible:ring-destructive")}>
-                                            <SelectValue placeholder="Poste" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {POSTE_ORDER.map(p => (
-                                                <SelectItem key={p} value={p}>
-                                                    {p} Poste
-                                                </SelectItem>
+                            {stockEntries.map((entry) => {
+                                // Calculate error dynamically for each entry
+                                const entryError = (entry.park || entry.type || entry.quantity) && !entry.poste ? "Veuillez sélectionner un poste." : undefined;
+                                return (
+                                    <TableRow key={entry.id} className="hover:bg-muted/50">
+                                        {/* Poste Selection Cell */}
+                                        <TableCell className="p-2 align-top">
+                                            <Select
+                                                value={entry.poste}
+                                                onValueChange={(value: Poste) => updateStockEntry(entry.id, "poste", value)}
+                                            >
+                                                <SelectTrigger id={`stock-poste-trigger-${entry.id}`} className={cn("h-8 text-sm w-[130px]", entryError && "border-destructive focus-visible:ring-destructive")}>
+                                                    <SelectValue placeholder="Poste" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {POSTE_ORDER.map(p => (
+                                                        <SelectItem key={p} value={p}>
+                                                            {p} Poste
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {entryError && <p className="text-xs text-destructive pt-1">{entryError}</p>}
+                                        </TableCell>
+                                        {/* Park Checkboxes */}
+                                        <TableCell className="p-2 align-top">
+                                        <div className="space-y-2">
+                                            {PARKS.map(park => (
+                                            <div key={park} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                id={`${entry.id}-${park}`}
+                                                checked={entry.park === park}
+                                                disabled={!entry.poste} // Disable if no poste selected
+                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : '', park)}
+                                                />
+                                                <Label htmlFor={`${entry.id}-${park}`} className={`font-normal text-sm ${!entry.poste ? 'text-muted-foreground' : ''}`}>{park}</Label>
+                                            </div>
                                             ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {entry.error && <p className="text-xs text-destructive pt-1">{entry.error}</p>}
-                                </TableCell>
-                                {/* Park Checkboxes */}
-                                <TableCell className="p-2 align-top">
-                                <div className="space-y-2">
-                                    {PARKS.map(park => (
-                                    <div key={park} className="flex items-center space-x-2">
-                                        <Checkbox
-                                        id={`${entry.id}-${park}`}
-                                        checked={entry.park === park}
-                                        disabled={!entry.poste} // Disable if no poste selected
-                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : '', park)}
+                                        </div>
+                                        </TableCell>
+                                        {/* Type Checkboxes */}
+                                        <TableCell className="p-2 align-top">
+                                        <div className="space-y-2">
+                                            {STOCK_TYPES.map(type => (
+                                            <div key={type} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                id={`${entry.id}-${type}`}
+                                                checked={entry.type === type}
+                                                disabled={!entry.poste || !entry.park} // Disable if no poste or park selected
+                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
+                                                />
+                                                <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                                            </div>
+                                            ))}
+                                        </div>
+                                        </TableCell>
+                                        {/* Quantity Input */}
+                                        <TableCell className="p-2 align-top">
+                                        <Input
+                                            type="number"
+                                            step="0.01" // Allow decimals
+                                            min="0"
+                                            className="w-full h-8 text-sm mt-1" // Align with checkboxes
+                                            placeholder="Quantité"
+                                            value={entry.quantity}
+                                            disabled={!entry.poste || !entry.type} // Disable if no poste or type selected
+                                            onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
                                         />
-                                        <Label htmlFor={`${entry.id}-${park}`} className={`font-normal text-sm ${!entry.poste ? 'text-muted-foreground' : ''}`}>{park}</Label>
-                                    </div>
-                                    ))}
-                                </div>
-                                </TableCell>
-                                {/* Type Checkboxes */}
-                                <TableCell className="p-2 align-top">
-                                <div className="space-y-2">
-                                    {STOCK_TYPES.map(type => (
-                                    <div key={type} className="flex items-center space-x-2">
-                                        <Checkbox
-                                        id={`${entry.id}-${type}`}
-                                        checked={entry.type === type}
-                                        disabled={!entry.poste || !entry.park} // Disable if no poste or park selected
-                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
-                                        />
-                                        <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
-                                    </div>
-                                    ))}
-                                </div>
-                                </TableCell>
-                                {/* Quantity Input */}
-                                <TableCell className="p-2 align-top">
-                                <Input
-                                    type="number"
-                                    step="0.01" // Allow decimals
-                                    min="0"
-                                    className="w-full h-8 text-sm mt-1" // Align with checkboxes
-                                    placeholder="Quantité"
-                                    value={entry.quantity}
-                                    disabled={!entry.poste || !entry.type} // Disable if no poste or type selected
-                                    onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
-                                />
-                                </TableCell>
-                                {/* Delete Button */}
-                                <TableCell className="p-2 text-right align-top">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    type="button" // Prevent form submission
-                                    onClick={() => deleteStockEntry(entry.id)}
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 mt-1" // Align with checkboxes
-                                >
-                                    <Trash className="h-4 w-4" />
-                                    <span className="sr-only">Supprimer</span>
-                                </Button>
-                                </TableCell>
-                            </TableRow>
-                            ))}
+                                        </TableCell>
+                                        {/* Delete Button */}
+                                        <TableCell className="p-2 text-right align-top">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            type="button" // Prevent form submission
+                                            onClick={() => deleteStockEntry(entry.id)}
+                                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 mt-1" // Align with checkboxes
+                                        >
+                                            <Trash className="h-4 w-4" />
+                                            <span className="sr-only">Supprimer</span>
+                                        </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                             {stockEntries.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
@@ -1035,3 +1045,5 @@ export function ActivityReport({ currentDate, previousDayThirdShiftEnd = null }:
     </Card>
   );
 }
+
+    
