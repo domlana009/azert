@@ -8,7 +8,7 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 0% 98%; /* Slightly lighter gray */
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -21,12 +21,12 @@ body {
     --muted: 0 0% 96.1%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 46 78% 53%; /* #E5B843 - Muted Gold */
-    --accent-foreground: 0 0% 98%;
+    --accent-foreground: 0 0% 98%; /* Changed to light for better contrast on gold */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 207 90% 80%;
+    --input: 0 0% 100%; /* White input background */
+    --ring: 207 90% 80%; /* Lighter blue for focus ring */
     --radius: 0.5rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -39,9 +39,9 @@ body {
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 240 6% 10%; /* Darker background */
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 240 5% 14%; /* Slightly lighter card background */
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
@@ -52,12 +52,12 @@ body {
     --muted: 0 0% 14.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 46 78% 53%; /* #E5B843 - Muted Gold */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --accent-foreground: 0 0% 9%; /* Darker foreground for accent */
+    --destructive: 0 72% 51%; /* Adjusted destructive color */
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 207 90% 80%;
+    --input: 240 3.7% 15.9%; /* Dark input background */
+    --ring: 207 90% 80%; /* Keep light blue ring for contrast */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -80,5 +80,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Ensure smooth transitions for color changes */
+    @apply transition-colors duration-200;
   }
 }

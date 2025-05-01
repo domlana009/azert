@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/table";
 
 interface DailyReportProps {
-  currentDate: string;
+  currentDate: Date; // Use Date object
 }
 
 interface ModuleStop {
@@ -26,6 +27,14 @@ interface ModuleStop {
   hm: string;
   ha: string;
 }
+
+type Poste = "1er" | "2ème" | "3ème";
+
+const POSTE_TIMES: Record<Poste, string> = {
+  "1er": "06:30 - 14:30",
+  "2ème": "14:30 - 22:30",
+  "3ème": "22:30 - 06:30",
+};
 
 // Helper function to parse duration strings into minutes
 function parseDurationToMinutes(duration: string): number {
@@ -76,32 +85,41 @@ function formatMinutesToHoursMinutes(totalMinutes: number): string {
 
 
 export function DailyReport({ currentDate }: DailyReportProps) {
-  const TOTAL_DAILY_MINUTES = 8 * 60; // Assuming an 8-hour workday
+  const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
+
+  const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
 
   const [module1Stops, setModule1Stops] = useState<ModuleStop[]>([
     {
       id: crypto.randomUUID(),
-      duration: "1·20", // Changed A1 to 1 for parsing
+      duration: "1·20",
       nature: "Marque produit d'agissant steril",
       hm: "6H·20",
-      ha: "1·40", // Changed A1 to 1
+      ha: "1·40",
     },
-    { id: crypto.randomUUID(), duration: "20", nature: "", hm: "", ha: "" }, // Changed A2·20 to 20
+    { id: crypto.randomUUID(), duration: "20", nature: "", hm: "", ha: "" },
   ]);
   const [module2Stops, setModule2Stops] = useState<ModuleStop[]>([
-    { id: crypto.randomUUID(), duration: "40", nature: "Lancement Vol. G3", hm: "6·H·55", ha: "55" }, // Changed σ·40, A6·H·5.5, σ·5.5
+    { id: crypto.randomUUID(), duration: "40", nature: "Lancement Vol. G3", hm: "6·H·55", ha: "55" },
   ]);
 
   const [module1TotalDowntime, setModule1TotalDowntime] = useState(0);
   const [module2TotalDowntime, setModule2TotalDowntime] = useState(0);
-  const [module1OperatingTime, setModule1OperatingTime] = useState(TOTAL_DAILY_MINUTES);
-  const [module2OperatingTime, setModule2OperatingTime] = useState(TOTAL_DAILY_MINUTES);
+  const [module1OperatingTime, setModule1OperatingTime] = useState(TOTAL_SHIFT_MINUTES);
+  const [module2OperatingTime, setModule2OperatingTime] = useState(TOTAL_SHIFT_MINUTES);
+
+   // Format date string once
+   const formattedDate = currentDate.toLocaleDateString("fr-FR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 
 
    useEffect(() => {
     const calculateTotals = (stops: ModuleStop[]) => {
       const totalDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
-      const operatingTime = TOTAL_DAILY_MINUTES - totalDowntime;
+      const operatingTime = TOTAL_SHIFT_MINUTES - totalDowntime;
       return { totalDowntime, operatingTime };
     };
 
@@ -113,7 +131,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     setModule2TotalDowntime(m2Downtime);
     setModule2OperatingTime(m2Operating >= 0 ? m2Operating : 0); // Ensure non-negative
 
-  }, [module1Stops, module2Stops, TOTAL_DAILY_MINUTES]);
+  }, [module1Stops, module2Stops, TOTAL_SHIFT_MINUTES]);
 
 
   const addStop = (module: number) => {
@@ -151,28 +169,51 @@ export function DailyReport({ currentDate }: DailyReportProps) {
   };
 
   return (
-    <Card className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <Card className="bg-card text-card-foreground rounded-lg shadow-md p-6 mb-6">
       <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b mb-6">
-        <CardTitle className="text-xl font-bold text-foreground">
+        <CardTitle className="text-xl font-bold">
           RAPPORT JOURNALIER (Activité TSUD)
         </CardTitle>
-        <span className="text-sm text-muted-foreground">{currentDate}</span>
+        <span className="text-sm text-muted-foreground">{formattedDate}</span>
       </CardHeader>
 
       <CardContent className="p-0 space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="site-select" className="text-foreground">Site</Label>
-          <Select defaultValue="USINE SUD">
-            <SelectTrigger id="site-select" className="w-full">
-              <SelectValue placeholder="Select Site" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="USINE SUD">USINE SUD</SelectItem>
-              <SelectItem value="USINE NORD">USINE NORD</SelectItem>
-              <SelectItem value="USINE CENTRALE">USINE CENTRALE</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Site Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="site-select" className="text-foreground">Site</Label>
+            <Select defaultValue="USINE SUD">
+              <SelectTrigger id="site-select" className="w-full">
+                <SelectValue placeholder="Select Site" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USINE SUD">USINE SUD</SelectItem>
+                <SelectItem value="USINE NORD">USINE NORD</SelectItem>
+                <SelectItem value="USINE CENTRALE">USINE CENTRALE</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Poste Selection */}
+          <div className="space-y-2">
+            <Label className="text-foreground">Poste</Label>
+            <RadioGroup
+              defaultValue={selectedPoste}
+              onValueChange={(value: Poste) => setSelectedPoste(value)}
+              className="flex space-x-4 pt-2"
+            >
+              {(["3ème", "1er", "2ème"] as Poste[]).map((poste) => ( // Order 3, 1, 2
+                <div key={poste} className="flex items-center space-x-2">
+                  <RadioGroupItem value={poste} id={`poste-${poste}`} />
+                  <Label htmlFor={`poste-${poste}`} className="font-normal">
+                    {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
         </div>
+
 
         {/* Module 1 Section */}
         <div className="space-y-4 p-4 border rounded-lg bg-card">
@@ -370,20 +411,18 @@ export function DailyReport({ currentDate }: DailyReportProps) {
         <div className="p-4 border rounded-lg bg-muted/30">
           <h3 className="font-semibold text-lg text-foreground mb-4">Totaux Temps de Fonctionnement (8h - Arrêts)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             {/* Removed md:grid-cols-4 as we only have 2 totals now */}
             <div className="space-y-1">
               <Label htmlFor="total-m1-operating" className="text-sm text-muted-foreground">
                 Module 1 Fonctionnement
               </Label>
-              <Input id="total-m1-operating" type="text" value={formatMinutesToHoursMinutes(module1OperatingTime)} className="h-9 bg-background/50 font-medium" readOnly />
+              <Input id="total-m1-operating" type="text" value={formatMinutesToHoursMinutes(module1OperatingTime)} className="h-9 bg-input font-medium" readOnly />
             </div>
              <div className="space-y-1">
               <Label htmlFor="total-m2-operating" className="text-sm text-muted-foreground">
                 Module 2 Fonctionnement
               </Label>
-              <Input id="total-m2-operating" type="text" value={formatMinutesToHoursMinutes(module2OperatingTime)} className="h-9 bg-background/50 font-medium" readOnly />
+              <Input id="total-m2-operating" type="text" value={formatMinutesToHoursMinutes(module2OperatingTime)} className="h-9 bg-input font-medium" readOnly />
             </div>
-             {/* Removed original HM/HA inputs */}
           </div>
         </div>
 
