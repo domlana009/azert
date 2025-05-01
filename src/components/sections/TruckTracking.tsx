@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 
 interface TruckTrackingProps {
   currentDate: string;
@@ -36,9 +37,32 @@ interface TruckData {
     location: string;
 }
 
+interface GeneralInfo {
+  direction: string;
+  division: string;
+  oibEe: string;
+  mine: string;
+  sortie: string;
+  distance: string;
+  qualite: string;
+  machineEngins: string;
+  arretsExplication: string; // Added field for stop explanations
+}
+
 
 export function TruckTracking({ currentDate }: TruckTrackingProps) {
   const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+  const [generalInfo, setGeneralInfo] = useState<GeneralInfo>({
+    direction: "phosboucraa",
+    division: "Extraction",
+    oibEe: "",
+    mine: "",
+    sortie: "",
+    distance: "",
+    qualite: "",
+    machineEngins: "",
+    arretsExplication: "", // Initialize explanation field
+  });
 
   const [truckData, setTruckData] = useState<TruckData[]>([
     {
@@ -54,6 +78,13 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
       location: "",
     },
   ]);
+
+    const handleGeneralInfoChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, // Allow Textarea
+        field: keyof GeneralInfo
+    ) => {
+        setGeneralInfo(prev => ({ ...prev, [field]: e.target.value }));
+    };
 
   const addTruck = () => {
     setTruckData([
@@ -128,10 +159,10 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
         <span className="text-sm text-muted-foreground">{currentDate}</span>
       </CardHeader>
 
-      <CardContent className="p-0">
+      <CardContent className="p-0 space-y-6"> {/* Added space-y-6 */}
 
         {/* Poste Selection */}
-         <div className="mb-6 space-y-2">
+         <div className="space-y-2">
             <Label className="text-foreground">Poste</Label>
             <RadioGroup
               value={selectedPoste} // Controlled component
@@ -150,8 +181,8 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
           </div>
 
 
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-3">
+        <div className="space-y-3"> {/* Replaced mb-6 with space-y-3 */}
+          <h3 className="font-medium text-gray-700 dark:text-gray-300">
             Informations Générales
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -159,49 +190,62 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
               <Label htmlFor="direction" className="block text-muted-foreground text-sm mb-1">
                 Direction
               </Label>
-              <Input id="direction" type="text" defaultValue="phosboucraa" className="h-9"/>
+              <Input id="direction" name="direction" type="text" value={generalInfo.direction} onChange={(e) => handleGeneralInfoChange(e, 'direction')} className="h-9"/>
             </div>
             <div>
               <Label htmlFor="division" className="block text-muted-foreground text-sm mb-1">
                 Division
               </Label>
-              <Input id="division" type="text" defaultValue="Extraction" className="h-9"/>
+              <Input id="division" name="division" type="text" value={generalInfo.division} onChange={(e) => handleGeneralInfoChange(e, 'division')} className="h-9"/>
             </div>
             <div>
               <Label htmlFor="oib-ee" className="block text-muted-foreground text-sm mb-1">OIB/EE</Label>
-              <Input id="oib-ee" type="text" className="h-9"/>
+              <Input id="oib-ee" name="oibEe" type="text" value={generalInfo.oibEe} onChange={(e) => handleGeneralInfoChange(e, 'oibEe')} className="h-9"/>
             </div>
             <div>
               <Label htmlFor="mine" className="block text-muted-foreground text-sm mb-1">Mine</Label>
-              <Input id="mine" type="text" className="h-9"/>
+              <Input id="mine" name="mine" type="text" value={generalInfo.mine} onChange={(e) => handleGeneralInfoChange(e, 'mine')} className="h-9"/>
             </div>
             <div>
               <Label htmlFor="sortie" className="block text-muted-foreground text-sm mb-1">Sortie</Label>
-              <Input id="sortie" type="text" className="h-9"/>
+              <Input id="sortie" name="sortie" type="text" value={generalInfo.sortie} onChange={(e) => handleGeneralInfoChange(e, 'sortie')} className="h-9"/>
             </div>
             <div>
               <Label htmlFor="distance" className="block text-muted-foreground text-sm mb-1">
                 Distance
               </Label>
-              <Input id="distance" type="text" className="h-9"/>
+              <Input id="distance" name="distance" type="text" value={generalInfo.distance} onChange={(e) => handleGeneralInfoChange(e, 'distance')} className="h-9"/>
             </div>
             <div>
               <Label htmlFor="qualite" className="block text-muted-foreground text-sm mb-1">
                 Qualité
               </Label>
-              <Input id="qualite" type="text" className="h-9"/>
+              <Input id="qualite" name="qualite" type="text" value={generalInfo.qualite} onChange={(e) => handleGeneralInfoChange(e, 'qualite')} className="h-9"/>
             </div>
              <div className="md:col-span-2">
               <Label htmlFor="machine-engins-track" className="block text-muted-foreground text-sm mb-1">
                 Machine ou Engins
               </Label>
-              <Input id="machine-engins-track" type="text" className="h-9"/>
+              <Input id="machine-engins-track" name="machineEngins" type="text" value={generalInfo.machineEngins} onChange={(e) => handleGeneralInfoChange(e, 'machineEngins')} className="h-9"/>
             </div>
           </div>
         </div>
 
-        <div className="mb-6">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-3">
+         {/* Section: Explication des Arrêts */}
+         <div className="space-y-2">
+             <Label htmlFor="truck-arrets-explication" className="font-medium text-gray-700 dark:text-gray-300">Explication des Arrêts (si applicable)</Label>
+             <Textarea
+                id="truck-arrets-explication"
+                name="arretsExplication"
+                placeholder="Expliquez ici les arrêts éventuels ayant impacté le pointage..."
+                value={generalInfo.arretsExplication}
+                onChange={(e) => handleGeneralInfoChange(e, 'arretsExplication')}
+                className="min-h-[80px]" // Adjusted height
+             />
+        </div>
+
+        <div className="space-y-3"> {/* Replaced mb-6 with space-y-3 */}
+          <h3 className="font-medium text-gray-700 dark:text-gray-300">
             Tableau de Pointage
           </h3>
           <div className="overflow-x-auto">
@@ -386,12 +430,12 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
                  </TableFooter> */}
             </Table>
           </div>
+            <Button onClick={addTruck} variant="outline" size="sm" className="mt-4"> {/* Added margin-top */}
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus mr-2 h-4 w-4"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                Ajouter Camion
+            </Button>
         </div>
-        <Button onClick={addTruck} variant="outline" size="sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus mr-2 h-4 w-4"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-            Ajouter Camion
-        </Button>
-        <div className="mt-6 flex justify-end space-x-3">
+        <div className="flex justify-end space-x-3">
           <Button variant="outline">Enregistrer</Button>
           <Button>Soumettre</Button>
         </div>
@@ -399,4 +443,3 @@ export function TruckTracking({ currentDate }: TruckTrackingProps) {
     </Card>
   );
 }
-

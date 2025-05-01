@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert"; // Import Alert for errors
 import { AlertCircle } from "lucide-react"; // Icon for errors
+import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 
 
 interface R0ReportProps {
@@ -70,6 +71,7 @@ interface FormData {
   indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste, ORDER MUST MATCH POSTE_ORDER
   shifts: string[]; // Corresponds to postes 1er, 2eme, 3eme D/F times
   ventilation: VentilationItem[]; // Use updated VentilationItem type
+  arretsExplication: string; // Added field for explanation of stops
   exploitation: Record<string, string>; // Use a record for exploitation data
   // 'bulls' now used for displaying calculated gross hours per poste
   bulls: string[]; // Index 0: 1er, Index 1: 2eme, Index 2: 3eme
@@ -246,6 +248,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
     indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes, order: 1er, 2eme, 3eme
     shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times
     ventilation: initialVentilationData, // Use initialized ventilation data with 'note'
+    arretsExplication: "", // Initialize explanation field
     exploitation: exploitationLabels.reduce((acc, label) => ({ ...acc, [label]: "" }), {}), // Initialize exploitation fields
     bulls: ["", "", ""], // Display for gross hours: Index 0: 1er, Index 1: 2eme, Index 2: 3eme
     repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
@@ -272,7 +275,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
   });
 
   const handleInputChange = (
-      e: React.ChangeEvent<HTMLInputElement>,
+      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, // Allow Textarea
       section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls' | 'indexCompteurs' | 'exploitation' | 'personnel',
       indexOrField?: number | string,
       fieldOrNestedField?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil'] | keyof IndexCompteurPoste | keyof FormData['personnel'] | 'duree' | 'note' // Added 'note'
@@ -326,7 +329,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
           else if (section === 'personnel' && fieldOrNestedField && typeof fieldOrNestedField === 'string' && fieldOrNestedField in newData.personnel) {
              newData.personnel = { ...newData.personnel, [fieldOrNestedField as keyof typeof newData.personnel]: value };
           }
-          // Handle top-level string fields directly
+          // Handle top-level string fields directly (including arretsExplication)
           else if (typeof targetName === 'string' && targetName in newData && typeof (newData as any)[targetName] === 'string') {
              (newData as any)[targetName] = value;
           }
@@ -758,6 +761,20 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                     </Table>
                 </div>
             </div>
+
+            {/* Section: Explication des Arrêts */}
+             <div className="space-y-2">
+                 <Label htmlFor="arrets-explication" className="font-semibold text-lg text-foreground">Explication des Arrêts</Label>
+                 <Textarea
+                    id="arrets-explication"
+                    name="arretsExplication"
+                    placeholder="Expliquez ici les arrêts enregistrés ci-dessus..."
+                    value={formData.arretsExplication}
+                    onChange={(e) => handleInputChange(e, "arretsExplication")}
+                    className="min-h-[100px]"
+                 />
+            </div>
+
 
              {/* Section: Exploitation Metrics */}
              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
