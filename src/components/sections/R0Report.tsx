@@ -715,7 +715,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                         <TableRow>
                           <TableHead className="w-[80px]">Code</TableHead>
                           <TableHead>Nature de l'Arrêt</TableHead>
-                          <TableHead className="w-[150px]">Note</TableHead> {/* Added Note Header */}
+                          <TableHead className="w-[150px]">Note</TableHead>{/* Added Note Header */}
                           <TableHead className="text-right w-[150px]">Durée Totale</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -724,7 +724,7 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
                           <TableRow key={item.code} className="hover:bg-muted/50">
                             <TableCell className="font-medium">{item.code}</TableCell>
                             <TableCell>{item.label}</TableCell>
-                            <TableCell> {/* Added Note Cell */}
+                            <TableCell>{/* Added Note Cell */}
                               <Input
                                 type="text"
                                 className="h-8 text-sm w-full"
@@ -1023,10 +1023,10 @@ export function R0Report({ currentDate, previousDayThirdShiftEnd = null }: R0Rep
 
             {/* Action Buttons */}
             <div className="mt-8 flex justify-end space-x-3">
-                <Button type="button" variant="outline">Enregistrer Brouillon</Button> {/* type="button" to prevent form submission */}
+                <Button type="button" variant="outline">Enregistrer Brouillon</Button>{/* type="button" to prevent form submission */}
                 <Button type="submit" disabled={counterErrors.some(err => err !== '')}>
                     Soumettre Rapport
-                </Button> {/* Submit button, disable if errors */}
+                </Button>{/* Submit button, disable if errors */}
             </div>
           </CardContent>
       </form>
