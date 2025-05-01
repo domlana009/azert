@@ -7,7 +7,6 @@ import { Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -183,32 +182,17 @@ export function DailyReport({ currentDate }: DailyReportProps) {
       </CardHeader>
 
       <CardContent className="p-0 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Site Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="site-select" className="text-foreground">Site</Label>
-            <Select defaultValue="USINE SUD">
-              <SelectTrigger id="site-select" className="w-full">
-                <SelectValue placeholder="Select Site" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="USINE SUD">USINE SUD</SelectItem>
-                <SelectItem value="USINE NORD">USINE NORD</SelectItem>
-                <SelectItem value="USINE CENTRALE">USINE CENTRALE</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="grid grid-cols-1 gap-6">
           {/* Poste Selection */}
           <div className="space-y-2">
             <Label className="text-foreground">Poste</Label>
             <RadioGroup
               value={selectedPoste} // Controlled component
               onValueChange={(value: Poste) => setSelectedPoste(value)}
-              className="flex space-x-4 pt-2"
+              className="flex flex-wrap space-x-4 pt-2" // Added flex-wrap
             >
               {POSTE_ORDER.map((poste) => ( // Use defined order
-                <div key={poste} className="flex items-center space-x-2">
+                <div key={poste} className="flex items-center space-x-2 mb-2"> {/* Added mb-2 */}
                   <RadioGroupItem value={poste} id={`poste-${poste}`} />
                   <Label htmlFor={`poste-${poste}`} className="font-normal">
                     {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
