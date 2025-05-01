@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Ensure Card is imported
 import { Button } from "@/components/ui/button";
-import { Trash } from "lucide-react";
+import { Trash, Plus } from "lucide-react"; // Added Plus icon
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -79,6 +78,13 @@ interface Counter {
     end: string;
 }
 
+// Interface for Liaison Counters (same structure as Counter)
+interface LiaisonCounter {
+    id: string;
+    start: string;
+    end: string;
+}
+
 export function ActivityReport({ currentDate }: ActivityReportProps) {
   const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
 
@@ -91,9 +97,13 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
       nature: "Attent Saturation SiCo",
     },
   ]);
-  // Updated initial state for counters
-  const [counters, setCounters] = useState<Counter[]>([
+  // Updated initial state for vibrator counters
+  const [vibratorCounters, setVibratorCounters] = useState<Counter[]>([
     { id: crypto.randomUUID(), start: "93h41r", end: "9395,30" },
+  ]);
+  // State for liaison counters
+  const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
+    { id: crypto.randomUUID(), start: "", end: "" }, // Initial empty liaison counter
   ]);
 
   const [totalDowntime, setTotalDowntime] = useState(0);
@@ -115,17 +125,28 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]);
   };
 
-  // Updated addCounter to match new interface
-  const addCounter = () => {
-    setCounters([...counters, { id: crypto.randomUUID(), start: "", end: "" }]);
+  // Updated addVibratorCounter to match new interface
+  const addVibratorCounter = () => {
+    setVibratorCounters([...vibratorCounters, { id: crypto.randomUUID(), start: "", end: "" }]);
   };
+
+  // Function to add liaison counter
+  const addLiaisonCounter = () => {
+    setLiaisonCounters([...liaisonCounters, { id: crypto.randomUUID(), start: "", end: "" }]);
+  };
+
 
   const deleteStop = (id: string) => {
     setStops(stops.filter(stop => stop.id !== id));
   };
 
-  const deleteCounter = (id: string) => {
-    setCounters(counters.filter(counter => counter.id !== id));
+  const deleteVibratorCounter = (id: string) => {
+    setVibratorCounters(vibratorCounters.filter(counter => counter.id !== id));
+  };
+
+   // Function to delete liaison counter
+  const deleteLiaisonCounter = (id: string) => {
+    setLiaisonCounters(liaisonCounters.filter(counter => counter.id !== id));
   };
 
  // Update field type to exclude hm and ha
@@ -133,9 +154,14 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops(stops.map(stop => stop.id === id ? { ...stop, [field]: value } : stop));
  };
 
- // Updated updateCounter signature
- const updateCounter = (id: string, field: keyof Omit<Counter, 'id'>, value: string) => {
-    setCounters(counters.map(counter => counter.id === id ? { ...counter, [field]: value } : counter));
+ // Updated updateVibratorCounter signature
+ const updateVibratorCounter = (id: string, field: keyof Omit<Counter, 'id'>, value: string) => {
+    setVibratorCounters(vibratorCounters.map(counter => counter.id === id ? { ...counter, [field]: value } : counter));
+ };
+
+ // Function to update liaison counter
+ const updateLiaisonCounter = (id: string, field: keyof Omit<LiaisonCounter, 'id'>, value: string) => {
+    setLiaisonCounters(liaisonCounters.map(counter => counter.id === id ? { ...counter, [field]: value } : counter));
  };
 
 
@@ -173,7 +199,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
            <div className="flex justify-between items-center">
               <h3 className="font-semibold text-lg text-foreground">Arrêts</h3>
               <Button variant="link" onClick={addStop} className="text-primary text-sm p-0 h-auto">
-                + Ajouter Arrêt
+                <Plus className="h-4 w-4 mr-1" /> Ajouter Arrêt
               </Button>
             </div>
 
@@ -258,8 +284,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
         <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
            <div className="flex justify-between items-center">
               <h3 className="font-semibold text-lg text-foreground">Compteurs Vibreurs</h3>
-               <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={addCounter}>
-                + Ajouter Vibreur
+               <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={addVibratorCounter}>
+                 <Plus className="h-4 w-4 mr-1" /> Ajouter Vibreur
               </Button>
             </div>
           <div className="overflow-x-auto">
@@ -278,7 +304,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {counters.map((counter) => (
+                {vibratorCounters.map((counter) => (
                   <TableRow key={counter.id} className="hover:bg-muted/50">
                     {/* Removed Poste Cell */}
                     <TableCell className="p-2">
@@ -287,7 +313,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         className="w-full h-8 text-sm"
                         value={counter.start}
                         onChange={(e) =>
-                          updateCounter(counter.id, "start", e.target.value)
+                          updateVibratorCounter(counter.id, "start", e.target.value)
                         }
                       />
                     </TableCell>
@@ -297,7 +323,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                          className="w-full h-8 text-sm"
                         value={counter.end}
                         onChange={(e) =>
-                          updateCounter(counter.id, "end", e.target.value)
+                          updateVibratorCounter(counter.id, "end", e.target.value)
                         }
                       />
                     </TableCell>
@@ -306,7 +332,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                        <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteCounter(counter.id)}
+                        onClick={() => deleteVibratorCounter(counter.id)}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                       >
                         <Trash className="h-4 w-4" />
@@ -315,11 +341,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                     </TableCell>
                   </TableRow>
                 ))}
-                 {counters.length === 0 && (
+                 {vibratorCounters.length === 0 && (
                     <TableRow>
                         {/* Adjusted colSpan */}
                         <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
-                            Aucun compteur ajouté.
+                            Aucun compteur vibreur ajouté.
                         </TableCell>
                     </TableRow>
                  )}
@@ -328,6 +354,76 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
           </div>
           {/* Removed Total Vibreurs input */}
         </div>
+
+         {/* Compteurs LIAISON Section */}
+        <div className="space-y-4 p-4 border rounded-lg bg-card">
+           <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg text-foreground">Compteurs LIAISON</h3>
+               <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={addLiaisonCounter}>
+                 <Plus className="h-4 w-4 mr-1" /> Ajouter Liaison
+              </Button>
+            </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                    Début
+                  </TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                    Fin
+                  </TableHead>
+                  <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {liaisonCounters.map((counter) => (
+                  <TableRow key={counter.id} className="hover:bg-muted/50">
+                    <TableCell className="p-2">
+                      <Input
+                        type="text"
+                        className="w-full h-8 text-sm"
+                        value={counter.start}
+                        onChange={(e) =>
+                          updateLiaisonCounter(counter.id, "start", e.target.value)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="p-2">
+                      <Input
+                        type="text"
+                         className="w-full h-8 text-sm"
+                        value={counter.end}
+                        onChange={(e) =>
+                          updateLiaisonCounter(counter.id, "end", e.target.value)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="p-2 text-right">
+                       <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteLiaisonCounter(counter.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                      >
+                        <Trash className="h-4 w-4" />
+                        <span className="sr-only">Supprimer</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                 {liaisonCounters.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
+                            Aucun compteur liaison ajouté.
+                        </TableCell>
+                    </TableRow>
+                 )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
 
         {/* Stock Section */}
         <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
@@ -398,3 +494,4 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     </Card>
   );
 }
+
