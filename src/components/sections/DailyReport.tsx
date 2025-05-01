@@ -24,7 +24,6 @@ interface ModuleStop {
   id: string; // Add unique id for key prop
   duration: string;
   nature: string;
-  // Removed hm and ha
 }
 
 type Poste = "1er" | "2ème" | "3ème";
@@ -87,7 +86,7 @@ function formatMinutesToHoursMinutes(totalMinutes: number): string {
 
 
 export function DailyReport({ currentDate }: DailyReportProps) {
-  const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
+  const TOTAL_PERIOD_MINUTES = 24 * 60; // 24-hour period
 
   const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
 
@@ -105,8 +104,8 @@ export function DailyReport({ currentDate }: DailyReportProps) {
 
   const [module1TotalDowntime, setModule1TotalDowntime] = useState(0);
   const [module2TotalDowntime, setModule2TotalDowntime] = useState(0);
-  const [module1OperatingTime, setModule1OperatingTime] = useState(TOTAL_SHIFT_MINUTES);
-  const [module2OperatingTime, setModule2OperatingTime] = useState(TOTAL_SHIFT_MINUTES);
+  const [module1OperatingTime, setModule1OperatingTime] = useState(TOTAL_PERIOD_MINUTES);
+  const [module2OperatingTime, setModule2OperatingTime] = useState(TOTAL_PERIOD_MINUTES);
 
    // Format date string once
    const formattedDate = currentDate.toLocaleDateString("fr-FR", {
@@ -119,8 +118,8 @@ export function DailyReport({ currentDate }: DailyReportProps) {
    useEffect(() => {
     const calculateTotals = (stops: ModuleStop[]) => {
       const totalDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
-      // Calculate operating time based on a standard 8-hour shift
-      const operatingTime = TOTAL_SHIFT_MINUTES - totalDowntime;
+      // Calculate operating time based on a standard 24-hour period
+      const operatingTime = TOTAL_PERIOD_MINUTES - totalDowntime;
       return { totalDowntime, operatingTime };
     };
 
@@ -132,7 +131,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
     setModule2TotalDowntime(m2Downtime);
     setModule2OperatingTime(m2Operating >= 0 ? m2Operating : 0); // Ensure non-negative
 
-  }, [module1Stops, module2Stops, TOTAL_SHIFT_MINUTES]);
+  }, [module1Stops, module2Stops, TOTAL_PERIOD_MINUTES]);
 
 
   const addStop = (module: number) => {
@@ -221,7 +220,6 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
                   </TableHead>
-                  {/* Removed HM and HA headers */}
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -249,7 +247,6 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                         }
                       />
                     </TableCell>
-                    {/* Removed HM and HA cells */}
                     <TableCell className="p-2 text-right">
                       <Button
                         variant="ghost"
@@ -297,7 +294,6 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Nature
                   </TableHead>
-                   {/* Removed HM and HA headers */}
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -325,7 +321,6 @@ export function DailyReport({ currentDate }: DailyReportProps) {
                         }
                       />
                     </TableCell>
-                    {/* Removed HM and HA cells */}
                     <TableCell className="p-2 text-right">
                       <Button
                         variant="ghost"
@@ -356,7 +351,7 @@ export function DailyReport({ currentDate }: DailyReportProps) {
 
         {/* Totaux Section */}
         <div className="p-4 border rounded-lg bg-muted/30">
-          <h3 className="font-semibold text-lg text-foreground mb-4">Totaux Temps de Fonctionnement (8h - Arrêts)</h3>
+          <h3 className="font-semibold text-lg text-foreground mb-4">Totaux Temps de Fonctionnement (24h - Arrêts)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label htmlFor="total-m1-operating" className="text-sm text-muted-foreground">
