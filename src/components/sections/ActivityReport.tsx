@@ -429,7 +429,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
         {/* Stock Section */}
         <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
           <h3 className="font-semibold text-lg text-foreground">Stock</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4"> {/* Changed to 3 columns */}
+            {/* PARK 1 */}
             <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
               <h4 className="font-medium text-foreground mb-2">PARK 1</h4>
               <div className="grid grid-cols-3 gap-2">
@@ -452,8 +453,14 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
               </div>
+               {/* Heure Debut Stock */}
+               <div className="mt-2">
+                    <Label className="block text-muted-foreground text-xs mb-1">HEURE DEBUT STOCK</Label>
+                    <Input type="time" className="h-8 text-sm"/>
+               </div>
             </div>
 
+            {/* PARK 2 */}
             <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
               <h4 className="font-medium text-foreground mb-2">PARK 2</h4>
               <div className="grid grid-cols-3 gap-2">
@@ -476,8 +483,43 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                   <Input type="text" className="h-8 text-sm"/>
                 </div>
               </div>
-              {/* Removed Poste input div */}
+              {/* Heure Debut Stock */}
+               <div className="mt-2">
+                    <Label className="block text-muted-foreground text-xs mb-1">HEURE DEBUT STOCK</Label>
+                    <Input type="time" className="h-8 text-sm"/>
+               </div>
             </div>
+
+             {/* PARK 3 */}
+            <div className="bg-muted/30 p-3 rounded-lg border"> {/* Adjusted background */}
+              <h4 className="font-medium text-foreground mb-2">PARK 3</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="block text-muted-foreground text-xs mb-1">
+                    NORMAL
+                  </Label>
+                  <Input type="text" className="h-8 text-sm"/>
+                </div>
+                <div>
+                  <Label className="block text-muted-foreground text-xs mb-1">
+                    OCEANE
+                  </Label>
+                  <Input type="text" className="h-8 text-sm"/>
+                </div>
+                <div>
+                  <Label className="block text-muted-foreground text-xs mb-1">
+                    PB30
+                  </Label>
+                  <Input type="text" className="h-8 text-sm"/>
+                </div>
+              </div>
+               {/* Heure Debut Stock */}
+               <div className="mt-2">
+                    <Label className="block text-muted-foreground text-xs mb-1">HEURE DEBUT STOCK</Label>
+                    <Input type="time" className="h-8 text-sm"/>
+               </div>
+            </div>
+
           </div>
         </div>
 
