@@ -52,21 +52,27 @@ interface FormData {
   machineEngins: string;
   sa: string;
   unite: string;
-  // indexCompteur: string; // Removed global index compteur
   indexCompteurs: IndexCompteurPoste[]; // Array for debut/fin per poste
   shifts: string[]; // Assuming shifts corresponds to postes 1er, 2eme, 3eme
-  ventilation: string[];
+  ventilation: { code: number; label: string; duree: string }[]; // Updated ventilation structure
+  exploitation: Record<string, string>; // Use a record for exploitation data
   bulls: string[]; // Assuming bulls corresponds to postes 1er, 2eme, 3eme
   repartitionTravail: RepartitionItem[];
   tricone: {
     pose: string;
     depose: string;
     causeDepose: string;
+    indexCompteur: string; // Added index compteur for Tricone
   };
   gasoil: {
     lieuAppoint: string;
     indexCompteur: string; // Specific index for gasoil
     quantiteDelivree: string;
+  };
+  personnel: {
+    conducteur: string;
+    graisseur: string;
+    matricules: string;
   };
   machineMarque: string;
   machineSerie: string;
@@ -74,92 +80,131 @@ interface FormData {
   machineDiametre: string;
 }
 
-
 // Sample data structure based on user input (assuming this structure)
- const data = {
-    ventilation: [
-      { code: 121, label: "ARRET CARREAU INDUSTRIEL" },
-      { code: 122, label: "COUPURE GENERALE DU COURANT" },
-      { code: 123, label: "GREVE" },
-      { code: 124, label: "INTEMPERIES" },
-      { code: 125, label: "STOCKS PLEINS" },
-      { code: 126, label: "J. FERIES OU HEBDOMADAIRES" }, // Note: Corrected FÊRIES to FERIES
-      { code: 128, label: "ARRET PAR LA CENTRALE (ENERGIE)" },
-      { code: 230, label: "CONTROLE" },
-      { code: 231, label: "DEFAUT ELEC. (C. CRAME, RESEAU)" }, // Note: Corrected C.RAME to C. CRAME
-      { code: 232, label: "PANNE MECANIQUE" },
-      { code: 233, label: "PANNE ELECTRIQUE" }, // Added Panne Electrique based on context
-      { code: 234, label: "INTERVENTION ATELIER PNEUMATIQUE" },
-      { code: 235, label: "ENTRETIEN SYSTEMATIQUE" },
-      { code: 236, label: "APPOINT (HUILE, GAZOL, EAU)" }, // Note: Corrected GAZOIL to GAZOL
-      { code: 237, label: "GRAISSAGE" },
-      { code: 238, label: "ARRET ELEC. INSTALLATION FIXES" },
-      { code: 239, label: "MANQUE CAMIONS" },
-      { code: 240, label: "MANQUE BULL" },
-      { code: 241, label: "MANQUE MECANICIEN" },
-      { code: 242, label: "MANQUE OUTILS DE TRAVAIL" },
-      { code: 243, label: "MACHINE A L'ARRET" },
-      { code: 244, label: "PANNE ENGIN DEVANT MACHINE" },
-      { code: 442, label: "RELEVE" },
-      { code: 443, label: "EXECUTION PLATE FORME" },
-      { code: 444, label: "DEPLACEMENT" },
-      { code: 445, label: "TIR ET SAUTAGE" }, // Note: Corrected MISE EN SAUTAGE based on context numbers
-      { code: 446, label: "MOUV. DE CABLE" },
-      { code: 448, label: "ARRET DECIDE" },
-      { code: 449, label: "MANQUE CONDUCTEUR" },
-      { code: 450, label: "BRIQUET" },
-      { code: 451, label: "PERTES (INTEMPERIES EXCLUES)" }, // Note: Corrected PISTES
-      { code: 452, label: "ARRETS MECA. INSTALLATIONS FIXES" },
-      { code: 453, label: "TELESCOPAGE" },
-      { code: 454, label: "EXCAVATION PURE" }, // Assigning new codes as they were duplicated
-      { code: 455, label: "TERRASSEMENT PUR" }, // Assigning new codes as they were duplicated
-    ],
-    exploitation: [
-      "TOTAL",
-      "HEURES COMPTEUR",
-      "METRAGE FORE",
-      "NOMBRE DE TROUS FORES",
-      "NOMBRE DE VOYAGES",
-      "NOMBRE D'ECAPAGES", // Note: Corrected DECAPAGES
-      "TONNAGE",
-      "NOMBRE T.K.J", // Note: Corrected T.K.U
-    ],
-    personnel: ["CONDUCTEUR", "GRAISSEUR", "MATRICULES"],
-    travail: ["REPARTITION DU TEMPS DE TRAVAIL PUR", "CHANTIER", "TEMPS", "IMPUTATION", "POSTE"], // Note: Corrected PAR
-    machine: [
-      "MARQUE",
-      "N° DE SERIE",
-      "TYPE",
-      "DIAMETRE",
-      // "LIEU APPOINT", // Moved to Gasoil section
-      // "INDEX COMPTEUR", // Appears multiple times, keeping general one and specific ones
-      // "SOMME CONSOMMATION", // Seems redundant with Quantite Delivree
-      // "TRONCON", // Ambiguous, related to Tricone?
-      // "DEPOSE", // Moved to Tricone section
-      // "CAUSE DE DEPOSE", // Moved to Tricone section
-    ],
-    causes_depose: [ // Assuming these relate to Tricone
-      "T1 CORPS USE",
-      "T2 MOLLETTES USEES", // Note: Corrected MOLETTES
-      "T3 MOLLETTES PERDUES",
-      "T4 ROULEMENT CASSE",
-      "T5 CORPS FISSURE",
-      "T6 ROULEMENT COINCE",
-      "T7 FILAGE ABIME",
-      "T8 TRICONE PERDU",
-    ],
-     // Adding Gasoil fields based on user provided structure
-    gasoil_fields: [
-       "LIEU D'APPOINT",
-       "INDEX COMPTEUR", // Specific for Gasoil
-       "QUANTITE DELIVREE",
-    ]
-  };
+ const ventilationData = [
+    { code: 121, label: "ARRET CARREAU INDUSTRIEL" },
+    { code: 122, label: "COUPURE GENERALE DU COURANT" },
+    { code: 123, label: "GREVE" },
+    { code: 124, label: "INTEMPERIES" },
+    { code: 125, label: "STOCKS PLEINS" },
+    { code: 126, label: "J. FERIES OU HEBDOMADAIRES" }, // Corrected FÊRIES to FERIES
+    { code: 128, label: "ARRET PAR LA CENTRALE (ENERGIE)" }, // Corrected (E.M.E.) based on latest prompt
+    { code: 230, label: "CONTROLE" },
+    { code: 231, label: "DEFAUT ELEC. (C. CRAME, RESEAU)" }, // Corrected C.RAME & RESAU
+    { code: 232, label: "PANNE MECANIQUE" },
+    { code: 233, label: "PANNE ELECTRIQUE" }, // Was PANNE ATELIER in previous data, corrected based on context
+    { code: 234, label: "INTERVENTION ATELIER PNEUMATIQUE" },
+    { code: 235, label: "ENTRETIEN SYSTEMATIQUE" },
+    { code: 236, label: "APPOINT (HUILE, GAZOL, EAU)" }, // Corrected GAZOIL to GAZOL
+    { code: 237, label: "GRAISSAGE" },
+    { code: 238, label: "ARRET ELEC. INSTALLATION FIXES" },
+    { code: 239, label: "MANQUE CAMIONS" },
+    { code: 240, label: "MANQUE BULL" },
+    { code: 241, label: "MANQUE MECANICIEN" },
+    { code: 242, label: "MANQUE OUTILS DE TRAVAIL" },
+    { code: 243, label: "MACHINE A L'ARRET" },
+    { code: 244, label: "PANNE ENGIN DEVANT MACHINE" },
+    { code: 442, label: "RELEVE" },
+    { code: 443, label: "EXECUTION PLATE FORME" },
+    { code: 444, label: "DEPLACEMENT" },
+    { code: 445, label: "TIR ET SAUTAGE" }, // Corrected MISE EN SAUTAGE
+    { code: 446, label: "MOUV. DE CABLE" }, // Corrected MOV.
+    { code: 448, label: "ARRET DECIDE" },
+    { code: 449, label: "MANQUE CONDUCTEUR" },
+    { code: 450, label: "BRIQUET" },
+    { code: 451, label: "PERTES (INTEMPERIES EXCLUES)" }, // Corrected PISTES
+    { code: 452, label: "ARRETS MECA. INSTALLATIONS FIXES" },
+    { code: 453, label: "TELESCOPAGE" },
+    // Assuming the last two codes were typos and should be distinct
+    { code: 454, label: "EXCAVATION PURE" }, // Previously 452
+    { code: 455, label: "TERRASSEMENT PUR" }, // Previously 453
+ ];
+
+ const exploitationLabels = [
+    "HEURES COMPTEUR", // This will be calculated
+    "METRAGE FORE",
+    "NOMBRE DE TROUS FORES",
+    "NOMBRE DE VOYAGES",
+    "NOMBRE D'ECAPAGES", // Corrected DECAPAGES
+    "TONNAGE",
+    "NOMBRE T.K.J", // Corrected T.K.U
+ ];
+
+ const personnelLabels = ["CONDUCTEUR", "GRAISSEUR", "MATRICULES"];
+
+ const causeDeposeOptions = [
+    "T1 CORPS USE",
+    "T2 MOLLETTES USEES", // Corrected MOLETTES
+    "T3 MOLLETTES PERDUES",
+    "T4 ROULEMENT CASSE",
+    "T5 CORPS FISSURE",
+    "T6 ROULEMENT COINCE",
+    "T7 FILAGE ABIME",
+    "T8 TRICONE PERDU", // Corrected TRONCON PERDU
+ ];
+
+
+// Helper function to parse duration strings into minutes
+function parseDurationToMinutes(duration: string): number {
+  if (!duration) return 0;
+
+  // Clean the string: remove anything not a digit, H, h, :, ·, M, m
+  // Allow spaces for flexibility e.g., "1 H 20 M"
+  const cleaned = duration.replace(/[^0-9Hh:·Mm\s]/g, '').trim().toUpperCase();
+
+  let hours = 0;
+  let minutes = 0;
+
+  // Match formats like HH:MM, HH·MM, HH H MM M, HH H MM, H:MM, H·MM, H H MM M, H H MM
+  let match = cleaned.match(/^(?:(\d{1,2})\s?[H:·]\s?)?(\d{1,2})\s?M?$/);
+   if (match) {
+     hours = match[1] ? parseInt(match[1], 10) : 0;
+     minutes = parseInt(match[2], 10);
+     return (hours * 60) + minutes;
+   }
+
+
+   // Match formats like HH H, H H
+   match = cleaned.match(/^(\d{1,2})\s?H$/);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      return hours * 60;
+    }
+
+  // Match only numbers (assume minutes)
+  match = cleaned.match(/^(\d+)\s?M?$/);
+  if (match) {
+    minutes = parseInt(match[1], 10);
+    return minutes;
+  }
+
+  console.warn(`Could not parse duration: "${duration}"`);
+  return 0; // Return 0 if parsing fails
+}
+
+
+// Helper function to format minutes into HHh MMm string
+function formatMinutesToHoursMinutes(totalMinutes: number): string {
+    if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m";
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.round(totalMinutes % 60); // Round minutes
+    return `${hours}h ${minutes}m`;
+}
+
+// Helper function to format hours (float) into HHh MMm string
+function formatHoursToHoursMinutes(totalHours: number): string {
+    if (isNaN(totalHours) || totalHours <= 0) return "0h 0m";
+    const hours = Math.floor(totalHours);
+    const minutes = Math.round((totalHours - hours) * 60);
+    return `${hours}h ${minutes}m`;
+}
 
 
 export function R0Report({ currentDate }: R0ReportProps) {
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
    const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
+   const [totalStopMinutes, setTotalStopMinutes] = useState(0);
+   const [netWorkingHours, setNetWorkingHours] = useState(0);
 
   const [formData, setFormData] = useState<FormData>({
     entree: "",
@@ -169,19 +214,26 @@ export function R0Report({ currentDate }: R0ReportProps) {
     sa: "",
     unite: "",
     indexCompteurs: Array(3).fill(null).map(() => ({ debut: "", fin: "" })), // Initialize for 3 postes
-    shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times? Needs clarification
-    ventilation: Array(data.ventilation.length).fill(""),
-    bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D manque bull?
+    shifts: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D/F times
+    ventilation: ventilationData.map(item => ({ ...item, duree: "" })), // Initialize duration for ventilation items
+    exploitation: exploitationLabels.reduce((acc, label) => ({ ...acc, [label]: "" }), {}), // Initialize exploitation fields
+    bulls: ["", "", ""], // Corresponds to 1er, 2eme, 3eme D manque bull
     repartitionTravail: Array(3).fill(null).map(() => ({ chantier: "", temps: "", imputation: "" })), // Create distinct objects
     tricone: {
       pose: "",
       depose: "",
       causeDepose: "",
+      indexCompteur: "", // Added field
     },
     gasoil: {
       lieuAppoint: "",
       indexCompteur: "", // Gasoil specific index
       quantiteDelivree: "",
+    },
+    personnel: { // Initialize personnel object
+        conducteur: "",
+        graisseur: "",
+        matricules: "",
     },
     machineMarque: "",
     machineSerie: "",
@@ -191,9 +243,9 @@ export function R0Report({ currentDate }: R0ReportProps) {
 
   const handleInputChange = (
       e: React.ChangeEvent<HTMLInputElement>,
-      section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls' | 'indexCompteurs', // Added indexCompteurs
-      indexOrField?: number | string, // Can be index or field name
-      fieldOrNestedField?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil'] | keyof IndexCompteurPoste // Updated type
+      section: keyof FormData | 'ventilation' | 'repartitionTravail' | 'tricone' | 'gasoil' | 'shifts' | 'bulls' | 'indexCompteurs' | 'exploitation' | 'personnel',
+      indexOrField?: number | string,
+      fieldOrNestedField?: keyof RepartitionItem | keyof FormData['tricone'] | keyof FormData['gasoil'] | keyof IndexCompteurPoste | keyof FormData['personnel'] // Added personnel keys
     ) => {
       const { name, value } = e.target;
        // Use name attribute for top-level fields if available and section matches a key in FormData
@@ -204,15 +256,17 @@ export function R0Report({ currentDate }: R0ReportProps) {
 
           if (section === 'ventilation' && typeof indexOrField === 'number') {
               const newVentilation = [...newData.ventilation];
-              newVentilation[indexOrField] = value;
-              newData.ventilation = newVentilation;
+              if (newVentilation[indexOrField]) {
+                 newVentilation[indexOrField] = { ...newVentilation[indexOrField], duree: value };
+                 newData.ventilation = newVentilation;
+              }
           } else if (section === 'repartitionTravail' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.repartitionTravail[0]) {
               if (newData.repartitionTravail && newData.repartitionTravail[indexOrField]) {
                   const newRepartition = [...newData.repartitionTravail];
                   newRepartition[indexOrField] = { ...newRepartition[indexOrField], [fieldOrNestedField]: value };
                   newData.repartitionTravail = newRepartition;
               }
-          } else if (section === 'indexCompteurs' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.indexCompteurs[0]) { // Handle indexCompteurs
+          } else if (section === 'indexCompteurs' && typeof indexOrField === 'number' && fieldOrNestedField && fieldOrNestedField in newData.indexCompteurs[0]) {
              if (newData.indexCompteurs && newData.indexCompteurs[indexOrField]) {
                 const newIndexCompteurs = [...newData.indexCompteurs];
                 newIndexCompteurs[indexOrField] = { ...newIndexCompteurs[indexOrField], [fieldOrNestedField as keyof IndexCompteurPoste]: value };
@@ -231,6 +285,14 @@ export function R0Report({ currentDate }: R0ReportProps) {
               newBulls[indexOrField] = value;
               newData.bulls = newBulls;
           }
+          // Handle exploitation fields
+          else if (section === 'exploitation' && typeof indexOrField === 'string' && indexOrField in newData.exploitation) {
+              newData.exploitation = { ...newData.exploitation, [indexOrField]: value };
+          }
+           // Handle personnel fields
+          else if (section === 'personnel' && fieldOrNestedField && typeof fieldOrNestedField === 'string' && fieldOrNestedField in newData.personnel) {
+             newData.personnel = { ...newData.personnel, [fieldOrNestedField as keyof typeof newData.personnel]: value };
+          }
           // Handle top-level string fields directly
           else if (typeof targetName === 'string' && targetName in newData && typeof (newData as any)[targetName] === 'string') {
              (newData as any)[targetName] = value;
@@ -245,21 +307,23 @@ export function R0Report({ currentDate }: R0ReportProps) {
    const handleSelectChange = (
       value: string,
       section: keyof FormData | 'tricone', // Specify sections where select is used
-      field: keyof FormData['tricone']
+      field: keyof FormData['tricone'] | keyof FormData['gasoil'] // Allow gasoil fields too
       // Add other fields if needed
     ) => {
      setFormData(prevData => {
         let newData = { ...prevData };
         if (section === 'tricone' && field && typeof field === 'string' && field in newData.tricone) {
             newData.tricone = { ...newData.tricone, [field as keyof typeof newData.tricone]: value };
+        } else if (section === 'gasoil' && field && typeof field === 'string' && field in newData.gasoil) {
+             newData.gasoil = { ...newData.gasoil, [field as keyof typeof newData.gasoil]: value };
         }
         // Add other select handlers here if needed
         return newData;
      });
     };
 
-    // Function to calculate working hours
-    const calculateWorkingHours = () => {
+    // Function to calculate working hours from index compteurs
+    const calculateCompteurHours = () => {
         const posteHours = formData.indexCompteurs.map(compteur => {
             const debut = parseFloat(compteur.debut);
             const fin = parseFloat(compteur.fin);
@@ -272,10 +336,45 @@ export function R0Report({ currentDate }: R0ReportProps) {
         setCalculatedHours({ poste: posteHours, total: totalHours });
     };
 
+    // Function to calculate total stop duration
+    const calculateTotalStops = () => {
+        const totalMinutes = formData.ventilation.reduce((acc, item) => {
+            return acc + parseDurationToMinutes(item.duree);
+        }, 0);
+        setTotalStopMinutes(totalMinutes);
+    };
+
+     // Calculate Net Working Hours
+    const calculateNetWorkingHours = () => {
+        const totalGrossHours = calculatedHours.total; // From index compteurs
+        const totalStopHours = totalStopMinutes / 60;
+        const netHours = totalGrossHours - totalStopHours;
+        setNetWorkingHours(netHours >= 0 ? netHours : 0); // Ensure non-negative
+    };
+
+
     // Recalculate on index compteur change
     useEffect(() => {
-        calculateWorkingHours();
+        calculateCompteurHours();
     }, [formData.indexCompteurs]);
+
+     // Recalculate on ventilation duration change
+    useEffect(() => {
+        calculateTotalStops();
+    }, [formData.ventilation]);
+
+    // Recalculate net hours when gross hours or stop hours change
+    useEffect(() => {
+        calculateNetWorkingHours();
+         // Update the HEURES COMPTEUR field in exploitation data
+        setFormData(prevData => ({
+            ...prevData,
+            exploitation: {
+                ...prevData.exploitation,
+                "HEURES COMPTEUR": formatHoursToHoursMinutes(netWorkingHours) // Format the net hours
+            }
+        }));
+    }, [calculatedHours.total, totalStopMinutes, netWorkingHours]); // Depend on netWorkingHours to update the form field
 
 
   return (
@@ -292,23 +391,23 @@ export function R0Report({ currentDate }: R0ReportProps) {
          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-b pb-4">
               <div>
                 <Label htmlFor="entree">Entrée</Label>
-                <Input id="entree" name="entree" placeholder="ENTREE" value={formData.entree} onChange={(e) => handleInputChange(e, 'entree')} />
+                <Input id="entree" name="entree" placeholder="ENTREE" value={formData.entree} onChange={(e) => handleInputChange(e, 'entree')} className="h-8"/>
               </div>
               <div>
                 <Label htmlFor="secteur">Secteur</Label>
-                <Input id="secteur" name="secteur" placeholder="SECTEUR" value={formData.secteur} onChange={(e) => handleInputChange(e, 'secteur')}/>
+                <Input id="secteur" name="secteur" placeholder="SECTEUR" value={formData.secteur} onChange={(e) => handleInputChange(e, 'secteur')} className="h-8"/>
               </div>
                <div>
                 <Label htmlFor="rapport-no">Rapport (R°)</Label>
-                <Input id="rapport-no" name="rapportNo" placeholder="N°" value={formData.rapportNo} onChange={(e) => handleInputChange(e, 'rapportNo')} />
+                <Input id="rapport-no" name="rapportNo" placeholder="N°" value={formData.rapportNo} onChange={(e) => handleInputChange(e, 'rapportNo')} className="h-8"/>
               </div>
               <div>
                 <Label htmlFor="machine-engins">Machine / Engins</Label>
-                <Input id="machine-engins" name="machineEngins" placeholder="Nom ou Code" value={formData.machineEngins} onChange={(e) => handleInputChange(e, 'machineEngins')} />
+                <Input id="machine-engins" name="machineEngins" placeholder="Nom ou Code" value={formData.machineEngins} onChange={(e) => handleInputChange(e, 'machineEngins')} className="h-8"/>
               </div>
                <div>
                 <Label htmlFor="sa">S.A</Label>
-                <Input id="sa" name="sa" placeholder="S.A" value={formData.sa} onChange={(e) => handleInputChange(e, 'sa')} />
+                <Input id="sa" name="sa" placeholder="S.A" value={formData.sa} onChange={(e) => handleInputChange(e, 'sa')} className="h-8"/>
               </div>
             </div>
 
@@ -322,6 +421,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
               name="unite"
               value={formData.unite}
               onChange={(e) => handleInputChange(e, "unite")}
+              className="h-8"
             />
           </div>
            {/* Index Compteur per Poste */}
@@ -359,7 +459,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                     </div>
                 ))}
                 <div className="col-span-3 mt-2 text-right font-semibold">
-                    Total Heures (24h): {calculatedHours.total.toFixed(2)}h
+                    Total Heures Brutes (24h): {calculatedHours.total.toFixed(2)}h
                  </div>
            </div>
         </div>
@@ -393,6 +493,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                       value={formData.shifts[index]} // Assuming index matches POSTE_ORDER
                       onChange={(e) => handleInputChange(e, "shifts", index)}
                       placeholder={POSTE_TIMES[poste]} // Use times as placeholder
+                      className="h-8"
                     />
                   </div>
                 ))}
@@ -413,7 +514,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data.ventilation.map((item, index) => (
+                    {formData.ventilation.map((item, index) => (
                       <TableRow key={item.code} className="hover:bg-muted/50">
                         <TableCell className="font-medium">{item.code}</TableCell>
                         <TableCell>{item.label}</TableCell>
@@ -422,8 +523,8 @@ export function R0Report({ currentDate }: R0ReportProps) {
                           <Input
                             type="text"
                             className="h-8 text-sm text-right w-full"
-                            placeholder="ex: 1h 30"
-                            value={formData.ventilation[index]}
+                            placeholder="ex: 1h 30m"
+                            value={item.duree}
                             onChange={(e) => handleInputChange(e, "ventilation", index)}
                           />
                         </TableCell>
@@ -433,7 +534,12 @@ export function R0Report({ currentDate }: R0ReportProps) {
                      <TableRow className="bg-muted/80 font-semibold">
                          <TableCell colSpan={2}>TOTAL Arrêts</TableCell>
                          <TableCell className="text-right">
-                             <Input type="text" className="h-8 text-sm text-right w-full bg-transparent font-semibold" readOnly value={"Calculated Total"} /> {/* Replace with calculated total */}
+                             <Input
+                                type="text"
+                                className="h-8 text-sm text-right w-full bg-transparent font-semibold border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                readOnly
+                                value={formatMinutesToHoursMinutes(totalStopMinutes)}
+                              />
                          </TableCell>
                     </TableRow>
                   </TableBody>
@@ -445,7 +551,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <h3 className="font-semibold text-lg text-foreground mb-4">Données d'Exploitation</h3>
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {data.exploitation.map((item) => (
+                    {exploitationLabels.map((item) => (
                          <div key={item} className="space-y-1">
                             <Label htmlFor={`expl-${item.toLowerCase().replace(/\s/g, '-')}`} className="text-sm text-muted-foreground">
                                 {item}
@@ -453,27 +559,35 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             <Input
                                 id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
                                 type="text"
-                                className="h-9"
-                                // Add state management if these need to be dynamic
+                                className="h-8"
+                                value={formData.exploitation[item]}
+                                onChange={(e) => handleInputChange(e, 'exploitation', item)}
+                                readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
+                                disabled={item === "HEURES COMPTEUR"} // Visually indicate it's disabled
                             />
                          </div>
                     ))}
+               </div>
+               <div className="mt-4 text-right font-semibold">
+                    Heures de Travail Net (Total Brutes - Total Arrêts): {formatHoursToHoursMinutes(netWorkingHours)}
                </div>
          </div>
 
 
         {/* Section: Manque Bull */}
         <div className="space-y-2">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Manque Bull</h3>
+          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Manque Bull (Durée)</h3>
           <div className="grid grid-cols-3 gap-4">
             {POSTE_ORDER.map((poste, index) => (
               <div key={poste}>
-                <Label htmlFor={`bull-${poste}`} className="text-muted-foreground text-xs">{`${poste} D`}</Label>
+                <Label htmlFor={`bull-${poste}`} className="text-muted-foreground text-xs">{`${poste} Poste`}</Label>
                 <Input
                   id={`bull-${poste}`}
                   type="text"
+                  placeholder="ex: 45m"
                   value={formData.bulls[index]} // Assuming index matches POSTE_ORDER
                   onChange={(e) => handleInputChange(e, "bulls", index)}
+                   className="h-8"
                 />
               </div>
             ))}
@@ -494,6 +608,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                                 type="text"
                                 value={formData.repartitionTravail[index]?.chantier || ''}
                                 onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'chantier')}
+                                className="h-8"
                             />
                         </div>
                         <div>
@@ -501,9 +616,10 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             <Input
                                 id={`temps-${poste}`}
                                 type="text"
-                                placeholder="ex: 7h 00"
+                                placeholder="ex: 7h 00m"
                                 value={formData.repartitionTravail[index]?.temps || ''}
                                 onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'temps')}
+                                className="h-8"
                             />
                         </div>
                         <div>
@@ -513,6 +629,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                                 type="text"
                                 value={formData.repartitionTravail[index]?.imputation || ''}
                                 onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'imputation')}
+                                className="h-8"
                             />
                         </div>
                     </div>
@@ -524,14 +641,16 @@ export function R0Report({ currentDate }: R0ReportProps) {
          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
               <h3 className="font-semibold text-lg text-foreground mb-4">Personnel</h3>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   {data.personnel.map(role => (
+                   {personnelLabels.map(role => (
                         <div key={role} className="space-y-1">
                             <Label htmlFor={`personnel-${role.toLowerCase()}`}>{role}</Label>
                             <Input
                                 id={`personnel-${role.toLowerCase()}`}
                                 type="text"
-                                className="h-9"
-                                // Add state management
+                                className="h-8"
+                                name={role.toLowerCase()} // Set name for direct mapping
+                                value={formData.personnel[role.toLowerCase() as keyof FormData['personnel']]}
+                                onChange={(e) => handleInputChange(e, 'personnel', undefined, role.toLowerCase() as keyof FormData['personnel'])}
                             />
                         </div>
                    ))}
@@ -549,19 +668,19 @@ export function R0Report({ currentDate }: R0ReportProps) {
                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                      <div>
                         <Label htmlFor="tricone-marque">Marque</Label>
-                        <Input id="tricone-marque" name="machineMarque" value={formData.machineMarque} onChange={(e) => handleInputChange(e, 'machineMarque')}/>
+                        <Input id="tricone-marque" name="machineMarque" value={formData.machineMarque} onChange={(e) => handleInputChange(e, 'machineMarque')} className="h-8"/>
                      </div>
                      <div>
                         <Label htmlFor="tricone-serie">N° de Série</Label>
-                        <Input id="tricone-serie" name="machineSerie" value={formData.machineSerie} onChange={(e) => handleInputChange(e, 'machineSerie')}/>
+                        <Input id="tricone-serie" name="machineSerie" value={formData.machineSerie} onChange={(e) => handleInputChange(e, 'machineSerie')} className="h-8"/>
                      </div>
                      <div>
                         <Label htmlFor="tricone-type">Type</Label>
-                        <Input id="tricone-type" name="machineType" value={formData.machineType} onChange={(e) => handleInputChange(e, 'machineType')}/>
+                        <Input id="tricone-type" name="machineType" value={formData.machineType} onChange={(e) => handleInputChange(e, 'machineType')} className="h-8"/>
                      </div>
                      <div>
                         <Label htmlFor="tricone-diametre">Diamètre</Label>
-                        <Input id="tricone-diametre" name="machineDiametre" value={formData.machineDiametre} onChange={(e) => handleInputChange(e, 'machineDiametre')}/>
+                        <Input id="tricone-diametre" name="machineDiametre" value={formData.machineDiametre} onChange={(e) => handleInputChange(e, 'machineDiametre')} className="h-8"/>
                      </div>
                  </div>
 
@@ -575,6 +694,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             name="pose"
                             value={formData.tricone.pose}
                             onChange={(e) => handleInputChange(e, 'tricone', undefined, 'pose')}
+                             className="h-8"
                         />
                     </div>
                     <div>
@@ -585,6 +705,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             name="depose"
                             value={formData.tricone.depose}
                             onChange={(e) => handleInputChange(e, 'tricone', undefined, 'depose')}
+                             className="h-8"
                         />
                     </div>
                      <div>
@@ -593,11 +714,11 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             value={formData.tricone.causeDepose}
                             onValueChange={(value) => handleSelectChange(value, 'tricone', 'causeDepose')}
                             >
-                          <SelectTrigger id="tricone-cause" className="w-full">
+                          <SelectTrigger id="tricone-cause" className="w-full h-8">
                             <SelectValue placeholder="Sélectionner Cause" />
                           </SelectTrigger>
                           <SelectContent>
-                            {data.causes_depose.map((cause, index) => (
+                            {causeDeposeOptions.map((cause, index) => (
                               <SelectItem key={index} value={cause}>{cause}</SelectItem>
                             ))}
                           </SelectContent>
@@ -606,7 +727,15 @@ export function R0Report({ currentDate }: R0ReportProps) {
                 </div>
                  <div>
                     <Label htmlFor="tricone-index-compteur">Index Compteur (Tricone)</Label>
-                    <Input id="tricone-index-compteur" type="text" placeholder="Index au moment de la dépose?" />
+                    <Input
+                        id="tricone-index-compteur"
+                        type="text"
+                        placeholder="Index au moment de la dépose"
+                        name="indexCompteur"
+                        value={formData.tricone.indexCompteur}
+                        onChange={(e) => handleInputChange(e, 'tricone', undefined, 'indexCompteur')}
+                        className="h-8"
+                     />
                 </div>
            </div>
 
@@ -622,6 +751,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             name="lieuAppoint"
                             value={formData.gasoil.lieuAppoint}
                             onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'lieuAppoint')}
+                             className="h-8"
                         />
                     </div>
                     <div>
@@ -632,6 +762,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             name="indexCompteur"
                             value={formData.gasoil.indexCompteur}
                              onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'indexCompteur')}
+                              className="h-8"
                         />
                     </div>
                     <div>
@@ -643,6 +774,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
                             value={formData.gasoil.quantiteDelivree}
                             onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
                              placeholder="en Litres" // Added placeholder
+                              className="h-8"
                         />
                     </div>
                 </div>
