@@ -131,9 +131,10 @@ interface Counter {
     error?: string; // Optional error message for this entry
 }
 
-// Interface for Liaison Counters (same structure as Counter)
+// Interface for Liaison Counters (same structure as Counter) - Added poste
 interface LiaisonCounter {
     id: string;
+    poste?: Poste | ''; // Added optional Poste field
     start: string;
     end: string;
     error?: string; // Optional error message for this entry
@@ -165,9 +166,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   const [vibratorCounters, setVibratorCounters] = useState<Counter[]>([
     { id: crypto.randomUUID(), poste: "1er", start: "9341.0", end: "9395.30" }, // Example values with poste
   ]);
-  // State for liaison counters
+  // State for liaison counters - Updated initial state to include poste
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
-    { id: crypto.randomUUID(), start: "100.5", end: "105.75" }, // Example values
+    { id: crypto.randomUUID(), poste: "2ème", start: "100.5", end: "105.75" }, // Example values with poste
   ]);
   // Updated state for stock entries
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([
@@ -242,9 +243,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setVibratorCounters([...vibratorCounters, { id: crypto.randomUUID(), poste: "", start: "", end: "" }]);
   };
 
-  // Function to add liaison counter
+  // Function to add liaison counter - Updated to include poste
   const addLiaisonCounter = () => {
-    setLiaisonCounters([...liaisonCounters, { id: crypto.randomUUID(), start: "", end: "" }]);
+    setLiaisonCounters([...liaisonCounters, { id: crypto.randomUUID(), poste: "", start: "", end: "" }]);
   };
 
    // Function to add stock entry
@@ -310,16 +311,24 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
             const updatedCounter = { ...counter, [field]: value };
             // Validate start/end after update
             const error = validateCounterEntry(
-                field === 'start' || field === 'poste' ? updatedCounter.start : value, // Use updated start if field is start or poste
-                field === 'end' || field === 'poste' ? updatedCounter.end : value     // Use updated end if field is end or poste
+                field === 'start' ? value : updatedCounter.start,
+                field === 'end' ? value : updatedCounter.end
             );
-            return { ...updatedCounter, error };
+            // Add poste validation check - ensure poste is selected
+            let finalError = error;
+            if (field !== 'poste' && !updatedCounter.poste) {
+                 finalError = "Veuillez sélectionner un poste.";
+             } else if (field === 'poste' && !value) {
+                 finalError = "Veuillez sélectionner un poste.";
+             }
+
+            return { ...updatedCounter, error: finalError };
         }
         return counter;
     }));
  };
 
- // Function to update liaison counter with validation
+ // Function to update liaison counter with validation and poste handling - Similar to updateVibratorCounter
  const updateLiaisonCounter = (id: string, field: keyof Omit<LiaisonCounter, 'id' | 'error'>, value: string) => {
     setLiaisonCounters(liaisonCounters.map(counter => {
          if (counter.id === id) {
@@ -329,7 +338,15 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                 field === 'start' ? value : updatedCounter.start,
                 field === 'end' ? value : updatedCounter.end
             );
-             return { ...updatedCounter, error };
+             // Add poste validation check - ensure poste is selected
+             let finalError = error;
+             if (field !== 'poste' && !updatedCounter.poste) {
+                 finalError = "Veuillez sélectionner un poste.";
+             } else if (field === 'poste' && !value) {
+                 finalError = "Veuillez sélectionner un poste.";
+             }
+
+             return { ...updatedCounter, error: finalError };
         }
         return counter;
     }));
@@ -374,6 +391,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
     let liaisonValidationFailed = false;
     const finalLiaisonCounters = liaisonCounters.map(c => {
+         // Ensure poste is selected for liaison counters too
+         if (!c.poste) {
+            liaisonValidationFailed = true;
+            return { ...c, error: "Veuillez sélectionner un poste." };
+         }
         const error = validateCounterEntry(c.start, c.end);
         if (error) liaisonValidationFailed = true;
         return { ...c, error };
@@ -654,7 +676,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs liaison. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
+                                Erreur(s) dans les compteurs liaison. Vérifiez les postes et les valeurs (Fin ≥ Début, Durée totale ≤ 24h). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -662,6 +684,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
+                                 <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]"> {/* Added width */}
+                                    Poste
+                                </TableHead>
                                 <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                                     Début (ex: 100.5)
                                 </TableHead>
@@ -674,11 +699,29 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                             <TableBody>
                                 {liaisonCounters.map((counter) => (
                                 <TableRow key={counter.id} className="hover:bg-muted/50">
+                                     <TableCell className="p-2"> {/* Cell for Poste Select */}
+                                        <Select
+                                            value={counter.poste}
+                                            onValueChange={(value: Poste) => updateLiaisonCounter(counter.id, "poste", value)}
+                                            >
+                                            <SelectTrigger className={cn("h-8 text-sm", counter.error?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                                <SelectValue placeholder="Sélectionner" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {POSTE_ORDER.map(p => (
+                                                    <SelectItem key={p} value={p}>
+                                                        {p} Poste ({POSTE_TIMES[p]})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                         {counter.error?.includes("poste") && <p className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                    </TableCell>
                                     <TableCell className="p-2">
                                     <Input
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", counter.error && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.start}
                                         placeholder="Index début"
                                         onChange={(e) =>
@@ -687,13 +730,13 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                         aria-invalid={!!counter.error}
                                         aria-describedby={counter.error ? `error-liaison-${counter.id}` : undefined}
                                     />
-                                    {counter.error && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                    {counter.error && !counter.error.includes("poste") && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
                                     </TableCell>
                                     <TableCell className="p-2">
                                     <Input
                                         type="text" // Use text to allow different formats initially
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", counter.error && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-sm", counter.error && !counter.error.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.end}
                                         placeholder="Index fin"
                                         onChange={(e) =>
@@ -721,7 +764,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                 ))}
                                 {liaisonCounters.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
                                             Aucun compteur liaison ajouté.
                                         </TableCell>
                                     </TableRow>
@@ -854,3 +897,4 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     </Card>
   );
 }
+
