@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Trash, Plus, AlertCircle } from "lucide-react"; // Added Plus icon and AlertCircle
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // Removed RadioGroup import
 import {
   Select,
   SelectContent,
@@ -49,7 +49,7 @@ function parseDurationToMinutes(duration: string): number {
     return minutes;
   }
   console.warn(`Could not parse duration: "${duration}"`);
-  return 0;
+  return 0; // Return 0 if parsing fails
 }
 
 // Helper function to format minutes into HHh MMm string (copied from DailyReport)
@@ -95,6 +95,7 @@ interface ActivityReportProps {
   currentDate: string;
 }
 
+// Keep Poste constants for potential context or future use, even if UI element is removed
 type Poste = "1er" | "2ème" | "3ème";
 type Park = 'PARK 1' | 'PARK 2' | 'PARK 3';
 type StockType = 'NORMAL' | 'OCEANE' | 'PB30';
@@ -140,14 +141,14 @@ interface StockEntry {
   park: Park | '';
   type: StockType | ''; // Only product types
   quantity: string; // For NORMAL, OCEANE, PB30
-  startTime: string; // For HEURE DEBUT STOCK
+  startTime: string; // For HEURE DEBUT STOCK - kept separate for clarity
 }
 
 
 export function ActivityReport({ currentDate }: ActivityReportProps) {
   const TOTAL_SHIFT_MINUTES = 8 * 60; // 8-hour shift
 
-  const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
+  // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
   const [stops, setStops] = useState<Stop[]>([
     { id: crypto.randomUUID(), duration: "4h 10", nature: "Manque Produit" },
     {
@@ -194,14 +195,38 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
   // Calculate total counter durations and check for errors whenever counters change
   useEffect(() => {
-    setTotalVibratorMinutes(calculateTotalCounterMinutes(vibratorCounters));
+    // Calculate total duration based on valid entries
+    const validVibratorCounters = vibratorCounters.filter(c => !c.error);
+    const vibratorTotal = calculateTotalCounterMinutes(validVibratorCounters);
+    setTotalVibratorMinutes(vibratorTotal);
+
+    // Check if ANY counter has an error
     setHasVibratorErrors(vibratorCounters.some(c => !!c.error));
-  }, [vibratorCounters]);
+
+    // Basic check: Total counter duration should not exceed total possible operating time
+    if (vibratorTotal > TOTAL_SHIFT_MINUTES) { // Or compare against operatingTime if more relevant
+        console.warn("Total vibreur duration exceeds shift time.");
+        // Potentially set a general error flag or specific counter errors
+        // setHasVibratorErrors(true); // Ensure general error is shown
+    }
+
+  }, [vibratorCounters, TOTAL_SHIFT_MINUTES]); // Added TOTAL_SHIFT_MINUTES dependency
 
   useEffect(() => {
-    setTotalLiaisonMinutes(calculateTotalCounterMinutes(liaisonCounters));
+      // Calculate total duration based on valid entries
+    const validLiaisonCounters = liaisonCounters.filter(c => !c.error);
+    const liaisonTotal = calculateTotalCounterMinutes(validLiaisonCounters);
+    setTotalLiaisonMinutes(liaisonTotal);
+
+    // Check if ANY counter has an error
     setHasLiaisonErrors(liaisonCounters.some(c => !!c.error));
-  }, [liaisonCounters]);
+
+    // Basic check: Total counter duration should not exceed total possible operating time
+    if (liaisonTotal > TOTAL_SHIFT_MINUTES) { // Or compare against operatingTime
+        console.warn("Total liaison duration exceeds shift time.");
+        // setHasLiaisonErrors(true);
+    }
+  }, [liaisonCounters, TOTAL_SHIFT_MINUTES]); // Added TOTAL_SHIFT_MINUTES dependency
 
 
   const addStop = () => {
@@ -261,11 +286,14 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
         return "Fin < Début.";
     }
 
-    // Check against operating time (optional, requires careful consideration)
-    // const duration = (startVal !== null && endVal !== null) ? endVal - startVal : 0;
-    // if (duration * 60 > operatingTime) {
-    //     return "Durée > Temps Op.";
-    // }
+    // Check duration against total possible shift time (8 hours = 480 minutes)
+    if (startVal !== null && endVal !== null) {
+        const durationHours = endVal - startVal;
+        if (durationHours * 60 > TOTAL_SHIFT_MINUTES) {
+            return `Durée > ${formatMinutesToHoursMinutes(TOTAL_SHIFT_MINUTES)}.`;
+        }
+    }
+
 
     return undefined; // No error
  };
@@ -328,18 +356,35 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
     // Re-validate all counters on submit just in case
     let vibratorValidationFailed = false;
-    setVibratorCounters(currentCounters => currentCounters.map(c => {
+    const finalVibratorCounters = vibratorCounters.map(c => {
         const error = validateCounterEntry(c.start, c.end);
         if (error) vibratorValidationFailed = true;
         return { ...c, error };
-    }));
+    });
+    setVibratorCounters(finalVibratorCounters); // Update state with final validation results
 
     let liaisonValidationFailed = false;
-    setLiaisonCounters(currentCounters => currentCounters.map(c => {
+    const finalLiaisonCounters = liaisonCounters.map(c => {
         const error = validateCounterEntry(c.start, c.end);
         if (error) liaisonValidationFailed = true;
         return { ...c, error };
-    }));
+    });
+    setLiaisonCounters(finalLiaisonCounters); // Update state with final validation results
+
+    // Recalculate totals based on potentially updated error states
+    const finalVibratorTotal = calculateTotalCounterMinutes(finalVibratorCounters.filter(c => !c.error));
+    const finalLiaisonTotal = calculateTotalCounterMinutes(finalLiaisonCounters.filter(c => !c.error));
+
+    // Final check against total shift time
+    if (finalVibratorTotal > TOTAL_SHIFT_MINUTES) {
+        console.error("Validation failed: Total vibreur duration exceeds shift time.");
+        vibratorValidationFailed = true;
+        // Optionally set a general error state here if not already handled by individual counter errors
+    }
+     if (finalLiaisonTotal > TOTAL_SHIFT_MINUTES) {
+        console.error("Validation failed: Total liaison duration exceeds shift time.");
+        liaisonValidationFailed = true;
+    }
 
 
     if (vibratorValidationFailed || liaisonValidationFailed) {
@@ -351,16 +396,16 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
     // If validation passes, proceed with submission logic
     console.log("Submitting Activity Report:", {
-        selectedPoste,
+        // selectedPoste, // Removed selectedPoste
         stops,
-        vibratorCounters,
-        liaisonCounters,
+        vibratorCounters: finalVibratorCounters, // Submit validated counters
+        liaisonCounters: finalLiaisonCounters, // Submit validated counters
         stockEntries,
         stockStartTime,
         totalDowntime,
         operatingTime,
-        totalVibratorMinutes,
-        totalLiaisonMinutes,
+        totalVibratorMinutes: finalVibratorTotal, // Submit calculated totals
+        totalLiaisonMinutes: finalLiaisonTotal, // Submit calculated totals
     });
     // TODO: Replace console.log with actual API call or state management update
     // e.g., await submitActivityReport({ ... });
@@ -379,24 +424,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
       {/* Wrap content in a form */}
        <form onSubmit={handleSubmit}>
             <CardContent className="p-0 space-y-6"> {/* Added space-y-6 */}
-                {/* Poste Selection */}
-                <div className="space-y-2"> {/* Replaced mb-6 */}
-                    <Label className="text-foreground">Poste</Label>
-                    <RadioGroup
-                    value={selectedPoste} // Controlled component
-                    onValueChange={(value: Poste) => setSelectedPoste(value)}
-                    className="flex flex-wrap space-x-4 pt-2"
-                    >
-                    {POSTE_ORDER.map((poste) => ( // Use defined order
-                        <div key={poste} className="flex items-center space-x-2 mb-2">
-                        <RadioGroupItem value={poste} id={`activity-poste-${poste}`} />
-                        <Label htmlFor={`activity-poste-${poste}`} className="font-normal text-foreground">
-                            {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
-                        </Label>
-                        </div>
-                    ))}
-                    </RadioGroup>
-                </div>
+
+                {/* Removed Poste Selection Section */}
+                {/* <div className="space-y-2"> ... </div> */}
+
 
                 {/* Arrêts Section */}
                 <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
@@ -498,7 +529,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs vibreurs. Vérifiez les valeurs (Fin ≥ Début).
+                                Erreur(s) dans les compteurs vibreurs. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 8h).
                             </AlertDescription>
                         </Alert>
                     )}
@@ -547,7 +578,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                          aria-describedby={counter.error ? `error-vibrator-${counter.id}` : undefined}
                                     />
                                     {/* Display error inline only if error exists and is on the 'end' field logic */}
-                                    {counter.error?.includes("Fin") && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                    {counter.error?.includes("Fin") || counter.error?.includes("Durée") ? <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p> : null}
                                     </TableCell>
                                     <TableCell className="p-2 text-right">
                                     <Button
@@ -592,7 +623,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs liaison. Vérifiez les valeurs (Fin ≥ Début).
+                                Erreur(s) dans les compteurs liaison. Vérifiez les valeurs (Fin ≥ Début, Durée totale ≤ 8h).
                             </AlertDescription>
                         </Alert>
                     )}
@@ -640,8 +671,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                                         aria-invalid={!!counter.error}
                                         aria-describedby={counter.error ? `error-liaison-${counter.id}` : undefined}
                                     />
-                                     {/* Display error inline only if error exists and is on the 'end' field logic */}
-                                     {counter.error?.includes("Fin") && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p>}
+                                     {/* Display error inline only if error exists and relates to Fin or Durée */}
+                                     {counter.error?.includes("Fin") || counter.error?.includes("Durée") ? <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{counter.error}</p> : null }
                                     </TableCell>
                                     <TableCell className="p-2 text-right">
                                     <Button
