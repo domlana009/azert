@@ -72,12 +72,11 @@ interface Stop {
   nature: string;
 }
 
+// Updated Counter interface: removed post and total
 interface Counter {
     id: string;
-    post: string;
     start: string;
     end: string;
-    total: string;
 }
 
 export function ActivityReport({ currentDate }: ActivityReportProps) {
@@ -92,8 +91,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
       nature: "Attent Saturation SiCo",
     },
   ]);
+  // Updated initial state for counters
   const [counters, setCounters] = useState<Counter[]>([
-    { id: crypto.randomUUID(), post: "Poste3", start: "93h41r", end: "9395,30", total: "0:45" },
+    { id: crypto.randomUUID(), start: "93h41r", end: "9395,30" },
   ]);
 
   const [totalDowntime, setTotalDowntime] = useState(0);
@@ -115,8 +115,9 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]);
   };
 
+  // Updated addCounter to match new interface
   const addCounter = () => {
-    setCounters([...counters, { id: crypto.randomUUID(), post: "", start: "", end: "", total: "" }]);
+    setCounters([...counters, { id: crypto.randomUUID(), start: "", end: "" }]);
   };
 
   const deleteStop = (id: string) => {
@@ -132,6 +133,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setStops(stops.map(stop => stop.id === id ? { ...stop, [field]: value } : stop));
  };
 
+ // Updated updateCounter signature
  const updateCounter = (id: string, field: keyof Omit<Counter, 'id'>, value: string) => {
     setCounters(counters.map(counter => counter.id === id ? { ...counter, [field]: value } : counter));
  };
@@ -264,34 +266,21 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
-                    Poste
-                  </TableHead>
+                  {/* Removed Poste Header */}
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Début
                   </TableHead>
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
                     Fin
                   </TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
-                    Total
-                  </TableHead>
+                  {/* Removed Total Header */}
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {counters.map((counter) => (
                   <TableRow key={counter.id} className="hover:bg-muted/50">
-                    <TableCell className="p-2">
-                      <Input
-                        type="text"
-                        className="w-full h-8 text-sm"
-                        value={counter.post}
-                        onChange={(e) =>
-                          updateCounter(counter.id, "post", e.target.value)
-                        }
-                      />
-                    </TableCell>
+                    {/* Removed Poste Cell */}
                     <TableCell className="p-2">
                       <Input
                         type="text"
@@ -312,16 +301,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                         }
                       />
                     </TableCell>
-                    <TableCell className="p-2">
-                      <Input
-                        type="text"
-                         className="w-24 h-8 text-sm"
-                        value={counter.total}
-                        onChange={(e) =>
-                          updateCounter(counter.id, "total", e.target.value)
-                        }
-                      />
-                    </TableCell>
+                    {/* Removed Total Cell */}
                     <TableCell className="p-2 text-right">
                        <Button
                         variant="ghost"
@@ -337,7 +317,8 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                 ))}
                  {counters.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground p-4">
+                        {/* Adjusted colSpan */}
+                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
                             Aucun compteur ajouté.
                         </TableCell>
                     </TableRow>
@@ -345,15 +326,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
               </TableBody>
             </Table>
           </div>
-          <div className="mt-2 flex justify-end items-center"> {/* Removed justify-between */}
-            {/* Removed Add button as it's now at the top */}
-            <div className="flex items-center">
-              <span className="text-sm text-muted-foreground mr-2">
-                Total Vibreurs:
-              </span>
-              <Input type="text" className="w-24 h-8 text-sm" defaultValue="06H55" />
-            </div>
-          </div>
+          {/* Removed Total Vibreurs input */}
         </div>
 
         {/* Stock Section */}
