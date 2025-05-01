@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
@@ -23,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 
 // Helper function to parse duration strings into minutes (copied from DailyReport)
 function parseDurationToMinutes(duration: string): number {
@@ -52,10 +52,34 @@ function parseDurationToMinutes(duration: string): number {
 
 // Helper function to format minutes into HHh MMm string (copied from DailyReport)
 function formatMinutesToHoursMinutes(totalMinutes: number): string {
-  if (isNaN(totalMinutes) || totalMinutes < 0) return "0h 0m";
+  if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m"; // Return 0 if non-positive
   const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+  const minutes = Math.round(totalMinutes % 60); // Round minutes
   return `${hours}h ${minutes}m`;
+}
+
+// Helper function to parse counter values (assuming they represent hours, possibly with decimals)
+function parseCounterValueToHours(value: string): number {
+  if (!value) return 0;
+  // Remove non-numeric characters except decimal separators, replace comma with dot
+  const cleaned = value.replace(/[^0-9.,]/g, '').replace(',', '.');
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+// Helper function to calculate total duration in minutes from counters
+function calculateTotalCounterMinutes(counters: Array<{ start: string; end: string }>): number {
+  const totalHours = counters.reduce((acc, counter) => {
+    const startHours = parseCounterValueToHours(counter.start);
+    const endHours = parseCounterValueToHours(counter.end);
+    if (endHours >= startHours) {
+      return acc + (endHours - startHours);
+    } else {
+      console.warn(`Invalid counter entry: End (${counter.end}) is less than Start (${counter.start})`);
+      return acc; // Ignore invalid entries where end < start
+    }
+  }, 0);
+  return Math.round(totalHours * 60); // Convert total hours to minutes and round
 }
 
 
@@ -65,7 +89,8 @@ interface ActivityReportProps {
 
 type Poste = "1er" | "2ème" | "3ème";
 type Park = 'PARK 1' | 'PARK 2' | 'PARK 3';
-type StockType = 'NORMAL' | 'OCEANE' | 'PB30' | 'HEURE DEBUT STOCK';
+type StockType = 'NORMAL' | 'OCEANE' | 'PB30';
+type StockTime = 'HEURE DEBUT STOCK';
 
 // Updated Poste times and order
 const POSTE_TIMES: Record<Poste, string> = {
@@ -75,7 +100,9 @@ const POSTE_TIMES: Record<Poste, string> = {
 };
 const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
 const PARKS: Park[] = ['PARK 1', 'PARK 2', 'PARK 3'];
-const STOCK_TYPES: StockType[] = ['NORMAL', 'OCEANE', 'PB30', 'HEURE DEBUT STOCK'];
+const STOCK_TYPES: StockType[] = ['NORMAL', 'OCEANE', 'PB30'];
+const STOCK_TIME_LABEL: StockTime = 'HEURE DEBUT STOCK';
+
 
 interface Stop {
   id: string;
@@ -97,12 +124,13 @@ interface LiaisonCounter {
     end: string;
 }
 
-// Interface for Stock Entries
+// Simplified Stock Entry interface
 interface StockEntry {
-    id: string;
-    park: Park | '';
-    type: StockType | '';
-    value: string; // Can be quantity or time HH:MM
+  id: string;
+  park: Park | '';
+  type: StockType | ''; // Only product types
+  quantity: string; // For NORMAL, OCEANE, PB30
+  startTime: string; // For HEURE DEBUT STOCK
 }
 
 
@@ -120,20 +148,25 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
   ]);
   // Updated initial state for vibrator counters
   const [vibratorCounters, setVibratorCounters] = useState<Counter[]>([
-    { id: crypto.randomUUID(), start: "93h41r", end: "9395,30" },
+    { id: crypto.randomUUID(), start: "9341.0", end: "9395.30" }, // Example values as numbers/decimals
   ]);
   // State for liaison counters
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
-    { id: crypto.randomUUID(), start: "", end: "" }, // Initial empty liaison counter
+    { id: crypto.randomUUID(), start: "100.5", end: "105.75" }, // Example values
   ]);
-  // State for stock entries
+  // Updated state for stock entries
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([
-      { id: crypto.randomUUID(), park: '', type: '', value: '' } // Start with one empty entry
+      { id: crypto.randomUUID(), park: '', type: '', quantity: '', startTime: '' } // Start with one empty entry
   ]);
+  // State for the single "Heure Debut Stock" time
+  const [stockStartTime, setStockStartTime] = useState('');
 
 
   const [totalDowntime, setTotalDowntime] = useState(0);
   const [operatingTime, setOperatingTime] = useState(TOTAL_SHIFT_MINUTES);
+  // State for total counter durations
+  const [totalVibratorMinutes, setTotalVibratorMinutes] = useState(0);
+  const [totalLiaisonMinutes, setTotalLiaisonMinutes] = useState(0);
 
 
   // Calculate total downtime and operating time whenever stops change
@@ -145,6 +178,15 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setOperatingTime(calculatedOperatingTime >= 0 ? calculatedOperatingTime : 0); // Ensure non-negative
 
   }, [stops, TOTAL_SHIFT_MINUTES]);
+
+  // Calculate total counter durations whenever counters change
+  useEffect(() => {
+    setTotalVibratorMinutes(calculateTotalCounterMinutes(vibratorCounters));
+  }, [vibratorCounters]);
+
+  useEffect(() => {
+    setTotalLiaisonMinutes(calculateTotalCounterMinutes(liaisonCounters));
+  }, [liaisonCounters]);
 
 
   const addStop = () => {
@@ -163,7 +205,7 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
 
    // Function to add stock entry
    const addStockEntry = () => {
-        setStockEntries([...stockEntries, { id: crypto.randomUUID(), park: '', type: '', value: '' }]);
+        setStockEntries([...stockEntries, { id: crypto.randomUUID(), park: '', type: '', quantity: '', startTime: '' }]);
    };
 
 
@@ -200,10 +242,23 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     setLiaisonCounters(liaisonCounters.map(counter => counter.id === id ? { ...counter, [field]: value } : counter));
  };
 
- // Function to update stock entry
- const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id'>, value: string) => {
-    setStockEntries(stockEntries.map(entry => entry.id === id ? { ...entry, [field]: value } : entry));
- };
+ // Function to update stock entry - simplified
+ const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id'>, value: string | boolean, parkOrType?: Park | StockType) => {
+    setStockEntries(stockEntries.map(entry => {
+      if (entry.id === id) {
+        if (field === 'park') {
+           // Only allow one park selection per entry
+          return { ...entry, park: value as Park, type: '', quantity: '' }; // Reset type/quantity when park changes
+        } else if (field === 'type') {
+          // Only allow one type selection per entry
+          return { ...entry, type: value as StockType, quantity: '' }; // Reset quantity when type changes
+        } else if (field === 'quantity') {
+          return { ...entry, quantity: value as string };
+        }
+      }
+      return entry;
+    }));
+  };
 
 
   return (
@@ -335,10 +390,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                 <TableRow>
                   {/* Removed Poste Header */}
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
-                    Début
+                    Début (ex: 9341.0)
                   </TableHead>
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
-                    Fin
+                    Fin (ex: 9395.3)
                   </TableHead>
                   {/* Removed Total Header */}
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
@@ -350,9 +405,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                     {/* Removed Poste Cell */}
                     <TableCell className="p-2">
                       <Input
-                        type="text"
+                        type="text" // Use text to allow different formats initially
+                        inputMode="decimal" // Hint for mobile keyboards
                         className="w-full h-8 text-sm"
                         value={counter.start}
+                        placeholder="Index début"
                         onChange={(e) =>
                           updateVibratorCounter(counter.id, "start", e.target.value)
                         }
@@ -360,9 +417,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                     </TableCell>
                     <TableCell className="p-2">
                       <Input
-                        type="text"
+                        type="text" // Use text to allow different formats initially
+                        inputMode="decimal"
                          className="w-full h-8 text-sm"
                         value={counter.end}
+                        placeholder="Index fin"
                         onChange={(e) =>
                           updateVibratorCounter(counter.id, "end", e.target.value)
                         }
@@ -393,7 +452,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
               </TableBody>
             </Table>
           </div>
-          {/* Removed Total Vibreurs input */}
+          {/* Display Total Vibreur Duration */}
+          <div className="mt-2 text-right text-sm text-muted-foreground">
+            Durée Totale Vibreurs: <strong>{formatMinutesToHoursMinutes(totalVibratorMinutes)}</strong>
+          </div>
         </div>
 
          {/* Compteurs LIAISON Section */}
@@ -409,10 +471,10 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
-                    Début
+                    Début (ex: 100.5)
                   </TableHead>
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
-                    Fin
+                    Fin (ex: 105.75)
                   </TableHead>
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
@@ -422,9 +484,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                   <TableRow key={counter.id} className="hover:bg-muted/50">
                     <TableCell className="p-2">
                       <Input
-                        type="text"
+                        type="text" // Use text to allow different formats initially
+                        inputMode="decimal"
                         className="w-full h-8 text-sm"
                         value={counter.start}
+                        placeholder="Index début"
                         onChange={(e) =>
                           updateLiaisonCounter(counter.id, "start", e.target.value)
                         }
@@ -432,9 +496,11 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
                     </TableCell>
                     <TableCell className="p-2">
                       <Input
-                        type="text"
+                        type="text" // Use text to allow different formats initially
+                        inputMode="decimal"
                          className="w-full h-8 text-sm"
                         value={counter.end}
+                         placeholder="Index fin"
                         onChange={(e) =>
                           updateLiaisonCounter(counter.id, "end", e.target.value)
                         }
@@ -463,75 +529,98 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
               </TableBody>
             </Table>
           </div>
+           {/* Display Total Liaison Duration */}
+           <div className="mt-2 text-right text-sm text-muted-foreground">
+             Durée Totale Liaison: <strong>{formatMinutesToHoursMinutes(totalLiaisonMinutes)}</strong>
+           </div>
         </div>
 
 
-        {/* Stock Section - Refactored */}
+        {/* Stock Section - Simplified */}
         <div className="space-y-4 p-4 border rounded-lg bg-card">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-lg text-foreground">Stock</h3>
             <Button variant="link" className="text-primary text-sm p-0 h-auto" onClick={addStockEntry}>
               <Plus className="h-4 w-4 mr-1" /> Ajouter Entrée Stock
             </Button>
           </div>
+
+          {/* HEURE DEBUT STOCK Input */}
+          <div className="mb-4">
+             <Label htmlFor="stock-start-time" className="font-medium text-foreground">{STOCK_TIME_LABEL}</Label>
+             <Input
+                id="stock-start-time"
+                type="time"
+                className="w-full h-9 mt-1"
+                value={stockStartTime}
+                onChange={(e) => setStockStartTime(e.target.value)}
+              />
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">PARK</TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[200px]">Type</TableHead>
-                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Valeur (Quantité ou Heure)</TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[250px]">Type Produit</TableHead>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Quantité</TableHead>
                   <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stockEntries.map((entry) => (
                   <TableRow key={entry.id} className="hover:bg-muted/50">
-                    <TableCell className="p-2">
-                      <Select
-                        value={entry.park}
-                        onValueChange={(value: Park) => updateStockEntry(entry.id, "park", value)}
-                      >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue placeholder="Choisir PARK" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PARKS.map(park => (
-                            <SelectItem key={park} value={park}>{park}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {/* Park Checkboxes */}
+                    <TableCell className="p-2 align-top">
+                      <div className="space-y-2">
+                        {PARKS.map(park => (
+                          <div key={park} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`${entry.id}-${park}`}
+                              checked={entry.park === park}
+                              onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : '', park)}
+                            />
+                            <Label htmlFor={`${entry.id}-${park}`} className="font-normal text-sm">{park}</Label>
+                          </div>
+                        ))}
+                      </div>
                     </TableCell>
-                    <TableCell className="p-2">
-                       <Select
-                        value={entry.type}
-                        onValueChange={(value: StockType) => updateStockEntry(entry.id, "type", value)}
-                       >
-                        <SelectTrigger className="h-8 text-sm">
-                          <SelectValue placeholder="Choisir Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STOCK_TYPES.map(type => (
-                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {/* Type Checkboxes */}
+                    <TableCell className="p-2 align-top">
+                       <div className="space-y-2">
+                         {STOCK_TYPES.map(type => (
+                          <div key={type} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`${entry.id}-${type}`}
+                              checked={entry.type === type}
+                              disabled={!entry.park} // Disable if no park selected
+                              onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
+                            />
+                            <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                          </div>
+                         ))}
+                       </div>
                     </TableCell>
-                    <TableCell className="p-2">
+                    {/* Quantity Input */}
+                    <TableCell className="p-2 align-top">
                       <Input
-                        type={entry.type === 'HEURE DEBUT STOCK' ? "time" : "text"} // Use time input if type is HEURE DEBUT STOCK
-                        className="w-full h-8 text-sm"
-                        placeholder={entry.type === 'HEURE DEBUT STOCK' ? "HH:MM" : "Quantité"}
-                        value={entry.value}
-                        onChange={(e) => updateStockEntry(entry.id, "value", e.target.value)}
+                        type="number"
+                        step="0.01" // Allow decimals
+                        min="0"
+                        className="w-full h-8 text-sm mt-1" // Align with checkboxes
+                        placeholder="Quantité"
+                        value={entry.quantity}
+                        disabled={!entry.type} // Disable if no type selected
+                        onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
                       />
                     </TableCell>
-                    <TableCell className="p-2 text-right">
+                    {/* Delete Button */}
+                    <TableCell className="p-2 text-right align-top">
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => deleteStockEntry(entry.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 mt-1" // Align with checkboxes
                       >
                         <Trash className="h-4 w-4" />
                         <span className="sr-only">Supprimer</span>
@@ -561,4 +650,3 @@ export function ActivityReport({ currentDate }: ActivityReportProps) {
     </Card>
   );
 }
-
