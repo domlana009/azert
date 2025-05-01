@@ -56,4 +56,5 @@ const AlertDescription = React.forwardRef<
 ))
 AlertDescription.displayName = "AlertDescription"
 
+// Ensure AlertTitle and AlertDescription are exported
 export { Alert, AlertTitle, AlertDescription }

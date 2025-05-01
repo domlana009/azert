@@ -17,12 +17,16 @@ import {
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertDescription } from "@/components/ui/alert"; // Import Alert for errors
+import { AlertCircle } from "lucide-react"; // Icon for errors
+
 
 interface R0ReportProps {
   currentDate: string;
 }
 
 type Poste = "1er" | "2ème" | "3ème";
+const MAX_HOURS_PER_POSTE = 8;
 
 // Updated Poste times and order
 const POSTE_TIMES: Record<Poste, string> = {
@@ -88,7 +92,7 @@ interface FormData {
     { code: 124, label: "INTEMPERIES" },
     { code: 125, label: "STOCKS PLEINS" },
     { code: 126, label: "J. FERIES OU HEBDOMADAIRES" }, // Corrected FÊRIES to FERIES
-    { code: 128, label: "ARRET PAR LA CENTRALE (ENERGIE)" }, // Corrected (E.M.E.) based on latest prompt
+    { code: 127, label: "ARRET PAR LA CENTRALE (ENERGIE)" }, // Corrected (E.M.E.) based on latest prompt
     { code: 230, label: "CONTROLE" },
     { code: 231, label: "DEFAUT ELEC. (C. CRAME, RESEAU)" }, // Corrected C.RAME & RESAU
     { code: 232, label: "PANNE MECANIQUE" },
@@ -104,24 +108,24 @@ interface FormData {
     { code: 242, label: "MANQUE OUTILS DE TRAVAIL" },
     { code: 243, label: "MACHINE A L'ARRET" },
     { code: 244, label: "PANNE ENGIN DEVANT MACHINE" },
-    { code: 442, label: "RELEVE" },
-    { code: 443, label: "EXECUTION PLATE FORME" },
-    { code: 444, label: "DEPLACEMENT" },
-    { code: 445, label: "TIR ET SAUTAGE" }, // Corrected MISE EN SAUTAGE
-    { code: 446, label: "MOUV. DE CABLE" }, // Corrected MOV.
-    { code: 448, label: "ARRET DECIDE" },
-    { code: 449, label: "MANQUE CONDUCTEUR" },
-    { code: 450, label: "BRIQUET" },
-    { code: 451, label: "PERTES (INTEMPERIES EXCLUES)" }, // Corrected PISTES
-    { code: 452, label: "ARRETS MECA. INSTALLATIONS FIXES" },
-    { code: 453, label: "TELESCOPAGE" },
+    { code: 441, label: "RELEVE" }, // Corrected code based on user image
+    { code: 442, label: "EXECUTION PLATE FORME" },
+    { code: 443, label: "DEPLACEMENT" }, // Corrected code based on user image
+    { code: 444, label: "TIR ET SAUTAGE" }, // Corrected MISE EN SAUTAGE
+    { code: 445, label: "MOUV. DE CABLE" }, // Corrected MOV. // Corrected code based on user image
+    { code: 446, label: "ARRET DECIDE" }, // Corrected code based on user image
+    { code: 447, label: "MANQUE CONDUCTEUR" }, // Corrected code based on user image
+    { code: 448, label: "BRIQUET" }, // Corrected code based on user image
+    { code: 449, label: "PERTES (INTEMPERIES EXCLUES)" }, // Corrected PISTES // Corrected code based on user image
+    { code: 450, label: "ARRETS MECA. INSTALLATIONS FIXES" },
+    { code: 451, label: "TELESCOPAGE" }, // Corrected code based on user image
     // Assuming the last two codes were typos and should be distinct
-    { code: 454, label: "EXCAVATION PURE" }, // Previously 452
-    { code: 455, label: "TERRASSEMENT PUR" }, // Previously 453
+    { code: 452, label: "EXCAVATION PURE" }, // Previously 452
+    { code: 453, label: "TERRASSEMENT PUR" }, // Previously 453
  ];
 
  const exploitationLabels = [
-    "HEURES COMPTEUR", // This will be calculated
+    "HEURES COMPTEUR", // This will be calculated (Net Hours)
     "METRAGE FORE",
     "NOMBRE DE TROUS FORES",
     "NOMBRE DE VOYAGES",
@@ -208,6 +212,8 @@ export function R0Report({ currentDate }: R0ReportProps) {
    const [totalStopMinutes, setTotalStopMinutes] = useState(0);
    // State to hold net working hours (total gross hours - total stop hours)
    const [netWorkingHours, setNetWorkingHours] = useState(0);
+   // State for counter validation errors
+   const [counterErrors, setCounterErrors] = useState<string[]>(['', '', '']); // One error message per poste
 
   const [formData, setFormData] = useState<FormData>({
     entree: "",
@@ -274,6 +280,13 @@ export function R0Report({ currentDate }: R0ReportProps) {
                 const newIndexCompteurs = [...newData.indexCompteurs];
                 newIndexCompteurs[indexOrField] = { ...newIndexCompteurs[indexOrField], [fieldOrNestedField as keyof IndexCompteurPoste]: value };
                 newData.indexCompteurs = newIndexCompteurs;
+
+                // Clear error for this specific poste when input changes
+                setCounterErrors(prevErrors => {
+                  const updatedErrors = [...prevErrors];
+                  updatedErrors[indexOrField] = '';
+                  return updatedErrors;
+                });
             }
           } else if (section === 'tricone' && fieldOrNestedField && typeof fieldOrNestedField === 'string' && fieldOrNestedField in newData.tricone) {
               newData.tricone = { ...newData.tricone, [fieldOrNestedField as keyof typeof newData.tricone]: value };
@@ -327,25 +340,58 @@ export function R0Report({ currentDate }: R0ReportProps) {
      });
     };
 
-    // Function to calculate working hours from index compteurs
-    const calculateCompteurHours = () => {
-        const posteHours = formData.indexCompteurs.map(compteur => {
+    // Function to validate and calculate working hours from index compteurs
+    const validateAndCalculateCompteurHours = () => {
+        let validationPassed = true;
+        const newErrors = ['', '', ''];
+        const posteHours = formData.indexCompteurs.map((compteur, index) => {
             const debut = parseFloat(compteur.debut);
             const fin = parseFloat(compteur.fin);
-            if (!isNaN(debut) && !isNaN(fin) && fin >= debut) {
-                return fin - debut;
-            }
-            return 0;
-        });
-        const totalHours = posteHours.reduce((sum, hours) => sum + hours, 0);
-        setCalculatedHours({ poste: posteHours, total: totalHours });
 
-        // Update the 'bulls' array in formData with formatted gross hours for display
-        const formattedGrossHours = posteHours.map(hours => formatHoursToHoursMinutes(hours));
-        setFormData(prevData => ({
-            ...prevData,
-            bulls: formattedGrossHours // Use bulls to display formatted gross hours
-        }));
+            if (compteur.debut === '' && compteur.fin === '') return 0; // Skip empty fields
+
+            if (isNaN(debut) || isNaN(fin)) {
+                newErrors[index] = "Début et Fin doivent être des nombres.";
+                validationPassed = false;
+                return 0;
+            }
+            if (fin < debut) {
+                newErrors[index] = "Fin doit être supérieur ou égal à Début.";
+                validationPassed = false;
+                return 0;
+            }
+            const duration = fin - debut;
+            if (duration > MAX_HOURS_PER_POSTE) {
+                 newErrors[index] = `Durée max ${MAX_HOURS_PER_POSTE}h dépassée.`;
+                 validationPassed = false;
+                return 0; // Return 0 if validation fails
+            }
+             // Validation passed for this poste
+            newErrors[index] = '';
+            return duration;
+        });
+
+        setCounterErrors(newErrors);
+
+        if (validationPassed) {
+            const totalHours = posteHours.reduce((sum, hours) => sum + hours, 0);
+            setCalculatedHours({ poste: posteHours, total: totalHours });
+
+            // Update the 'bulls' array in formData with formatted gross hours for display
+            const formattedGrossHours = posteHours.map(hours => formatHoursToHoursMinutes(hours));
+            setFormData(prevData => ({
+                ...prevData,
+                bulls: formattedGrossHours // Use bulls to display formatted gross hours
+            }));
+        } else {
+            // Reset calculated hours if validation fails
+             setCalculatedHours({ poste: [0, 0, 0], total: 0 });
+              setFormData(prevData => ({
+                ...prevData,
+                bulls: ["", "", ""] // Clear display hours
+            }));
+        }
+        return validationPassed; // Return validation status
     };
 
     // Function to calculate total stop duration
@@ -358,6 +404,11 @@ export function R0Report({ currentDate }: R0ReportProps) {
 
      // Calculate Net Working Hours
     const calculateNetWorkingHours = () => {
+        // Only calculate if there are no counter errors
+        if (counterErrors.some(err => err !== '')) {
+             setNetWorkingHours(0); // Reset if there are errors
+             return;
+        }
         const totalGrossHours = calculatedHours.total; // From index compteurs
         const totalStopHours = totalStopMinutes / 60;
         const netHours = totalGrossHours - totalStopHours;
@@ -367,7 +418,7 @@ export function R0Report({ currentDate }: R0ReportProps) {
 
     // Recalculate on index compteur change
     useEffect(() => {
-        calculateCompteurHours();
+        validateAndCalculateCompteurHours();
     }, [formData.indexCompteurs]);
 
      // Recalculate on ventilation duration change
@@ -375,18 +426,37 @@ export function R0Report({ currentDate }: R0ReportProps) {
         calculateTotalStops();
     }, [formData.ventilation]);
 
-    // Recalculate net hours when gross hours or stop hours change
+    // Recalculate net hours when gross hours or stop hours change, or errors change
     useEffect(() => {
         calculateNetWorkingHours();
-         // Update the HEURES COMPTEUR field in exploitation data
+         // Update the HEURES COMPTEUR field in exploitation data only if no errors
+        const formattedNetHours = counterErrors.some(err => err !== '') ? "Erreur Compteur" : formatHoursToHoursMinutes(netWorkingHours);
         setFormData(prevData => ({
             ...prevData,
             exploitation: {
                 ...prevData.exploitation,
-                "HEURES COMPTEUR": formatHoursToHoursMinutes(netWorkingHours) // Format the net hours
+                "HEURES COMPTEUR": formattedNetHours
             }
         }));
-    }, [calculatedHours.total, totalStopMinutes]); // Removed netWorkingHours dependency to prevent loop
+    }, [calculatedHours.total, totalStopMinutes, counterErrors]); // Added counterErrors dependency
+
+
+    // Handle form submission - Prevent submission if errors exist
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const isCompteurValid = validateAndCalculateCompteurHours(); // Re-validate on submit attempt
+
+        if (!isCompteurValid) {
+            console.error("Validation failed: Invalid counter inputs.");
+            // Optionally, show a general error message to the user
+            // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les compteurs.", variant: "destructive" });
+            return; // Prevent submission
+        }
+
+        // If validation passes, proceed with submission logic...
+        console.log("Form submitted:", formData);
+        // Replace with actual submission logic (e.g., API call)
+    };
 
 
   return (
@@ -398,409 +468,431 @@ export function R0Report({ currentDate }: R0ReportProps) {
         <span className="text-sm text-muted-foreground">{currentDate}</span>
       </CardHeader>
 
-      <CardContent className="p-0 space-y-6">
-         {/* Section: Entête Info */}
-         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-b pb-4">
-              <div>
-                <Label htmlFor="entree">Entrée</Label>
-                <Input id="entree" name="entree" placeholder="ENTREE" value={formData.entree} onChange={(e) => handleInputChange(e, 'entree')} className="h-8"/>
+      {/* Use form tag and onSubmit handler */}
+      <form onSubmit={handleSubmit}>
+          <CardContent className="p-0 space-y-6">
+             {/* Section: Entête Info */}
+             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 border-b pb-4">
+                  <div>
+                    <Label htmlFor="entree">Entrée</Label>
+                    <Input id="entree" name="entree" placeholder="ENTREE" value={formData.entree} onChange={(e) => handleInputChange(e, 'entree')} className="h-8"/>
+                  </div>
+                  <div>
+                    <Label htmlFor="secteur">Secteur</Label>
+                    <Input id="secteur" name="secteur" placeholder="SECTEUR" value={formData.secteur} onChange={(e) => handleInputChange(e, 'secteur')} className="h-8"/>
+                  </div>
+                   <div>
+                    <Label htmlFor="rapport-no">Rapport (R°)</Label>
+                    <Input id="rapport-no" name="rapportNo" placeholder="N°" value={formData.rapportNo} onChange={(e) => handleInputChange(e, 'rapportNo')} className="h-8"/>
+                  </div>
+                  <div>
+                    <Label htmlFor="machine-engins">Machine / Engins</Label>
+                    <Input id="machine-engins" name="machineEngins" placeholder="Nom ou Code" value={formData.machineEngins} onChange={(e) => handleInputChange(e, 'machineEngins')} className="h-8"/>
+                  </div>
+                   <div>
+                    <Label htmlFor="sa">S.A</Label>
+                    <Input id="sa" name="sa" placeholder="S.A" value={formData.sa} onChange={(e) => handleInputChange(e, 'sa')} className="h-8"/>
+                  </div>
+                </div>
+
+
+            {/* Section: Unite & Index Compteur per Poste */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-1">
+                <Label htmlFor="unite">Unité</Label>
+                <Input
+                  id="unite"
+                  name="unite"
+                  value={formData.unite}
+                  onChange={(e) => handleInputChange(e, "unite")}
+                  className="h-8"
+                />
               </div>
-              <div>
-                <Label htmlFor="secteur">Secteur</Label>
-                <Input id="secteur" name="secteur" placeholder="SECTEUR" value={formData.secteur} onChange={(e) => handleInputChange(e, 'secteur')} className="h-8"/>
-              </div>
-               <div>
-                <Label htmlFor="rapport-no">Rapport (R°)</Label>
-                <Input id="rapport-no" name="rapportNo" placeholder="N°" value={formData.rapportNo} onChange={(e) => handleInputChange(e, 'rapportNo')} className="h-8"/>
-              </div>
-              <div>
-                <Label htmlFor="machine-engins">Machine / Engins</Label>
-                <Input id="machine-engins" name="machineEngins" placeholder="Nom ou Code" value={formData.machineEngins} onChange={(e) => handleInputChange(e, 'machineEngins')} className="h-8"/>
-              </div>
-               <div>
-                <Label htmlFor="sa">S.A</Label>
-                <Input id="sa" name="sa" placeholder="S.A" value={formData.sa} onChange={(e) => handleInputChange(e, 'sa')} className="h-8"/>
-              </div>
+               {/* Index Compteur per Poste */}
+               <div className="md:col-span-3 grid grid-cols-3 gap-4 border p-4 rounded-md bg-muted/30">
+                    {POSTE_ORDER.map((poste, index) => (
+                        <div key={`index-${poste}`} className="space-y-2">
+                             <Label className="font-medium">{poste} Poste</Label>
+                             <div>
+                                <Label htmlFor={`index-debut-${poste}`} className="text-xs text-muted-foreground">Début</Label>
+                                <Input
+                                    id={`index-debut-${poste}`}
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.indexCompteurs[index]?.debut || ''}
+                                    onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'debut')}
+                                    placeholder="Index début"
+                                    className={`h-8 ${counterErrors[index] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                                    aria-invalid={!!counterErrors[index]}
+                                    aria-describedby={counterErrors[index] ? `error-compteur-${poste}` : undefined}
+                                />
+                             </div>
+                             <div>
+                                 <Label htmlFor={`index-fin-${poste}`} className="text-xs text-muted-foreground">Fin</Label>
+                                <Input
+                                    id={`index-fin-${poste}`}
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.indexCompteurs[index]?.fin || ''}
+                                    onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'fin')}
+                                    placeholder="Index fin"
+                                    className={`h-8 ${counterErrors[index] ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                                     aria-invalid={!!counterErrors[index]}
+                                     aria-describedby={counterErrors[index] ? `error-compteur-${poste}` : undefined}
+                                />
+                             </div>
+                              <div className="text-xs text-muted-foreground pt-1">
+                                 Heures Brutes: {formatHoursToHoursMinutes(calculatedHours.poste[index])}
+                             </div>
+                              {/* Display error message for this specific poste */}
+                             {counterErrors[index] && (
+                                <p id={`error-compteur-${poste}`} className="text-xs text-destructive pt-1">{counterErrors[index]}</p>
+                             )}
+                        </div>
+                    ))}
+                    <div className="col-span-3 mt-2 text-right font-semibold">
+                        Total Heures Brutes (24h): {formatHoursToHoursMinutes(calculatedHours.total)}
+                     </div>
+               </div>
             </div>
 
+             {/* General Counter Error Alert */}
+              {counterErrors.some(err => err !== '') && (
+                  <Alert variant="destructive" className="mt-4">
+                       <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                          Erreur dans les index compteurs. Veuillez vérifier les valeurs saisies (numériques, fin ≥ début, durée ≤ {MAX_HOURS_PER_POSTE}h par poste).
+                      </AlertDescription>
+                  </Alert>
+              )}
 
-        {/* Section: Unite & Index Compteur per Poste */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-1">
-            <Label htmlFor="unite">Unité</Label>
-            <Input
-              id="unite"
-              name="unite"
-              value={formData.unite}
-              onChange={(e) => handleInputChange(e, "unite")}
-              className="h-8"
-            />
-          </div>
-           {/* Index Compteur per Poste */}
-           <div className="md:col-span-3 grid grid-cols-3 gap-4 border p-4 rounded-md bg-muted/30">
-                {POSTE_ORDER.map((poste, index) => (
-                    <div key={`index-${poste}`} className="space-y-2">
-                         <Label className="font-medium">{poste} Poste</Label>
-                         <div>
-                            <Label htmlFor={`index-debut-${poste}`} className="text-xs text-muted-foreground">Début</Label>
-                            <Input
-                                id={`index-debut-${poste}`}
-                                type="number"
-                                step="0.01"
-                                value={formData.indexCompteurs[index]?.debut || ''}
-                                onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'debut')}
-                                placeholder="Index début"
-                                className="h-8"
-                            />
-                         </div>
-                         <div>
-                             <Label htmlFor={`index-fin-${poste}`} className="text-xs text-muted-foreground">Fin</Label>
-                            <Input
-                                id={`index-fin-${poste}`}
-                                type="number"
-                                step="0.01"
-                                value={formData.indexCompteurs[index]?.fin || ''}
-                                onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'fin')}
-                                placeholder="Index fin"
-                                className="h-8"
-                            />
-                         </div>
-                          <div className="text-xs text-muted-foreground pt-1">
-                             Heures Brutes: {formatHoursToHoursMinutes(calculatedHours.poste[index])}
-                         </div>
+            {/* Section: Poste Selection & Shifts */}
+            <div className="space-y-2">
+               <Label className="text-foreground">Poste Actuel</Label>
+                <RadioGroup
+                  value={selectedPoste} // Controlled component
+                  onValueChange={(value: Poste) => setSelectedPoste(value)}
+                  className="flex flex-wrap space-x-4 pt-2"
+                >
+                  {POSTE_ORDER.map((poste) => ( // Use defined order
+                    <div key={poste} className="flex items-center space-x-2 mb-2">
+                      <RadioGroupItem value={poste} id={`r0-poste-${poste}`} />
+                      <Label htmlFor={`r0-poste-${poste}`} className="font-normal text-foreground">
+                        {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
+                      </Label>
                     </div>
-                ))}
-                <div className="col-span-3 mt-2 text-right font-semibold">
-                    Total Heures Brutes (24h): {formatHoursToHoursMinutes(calculatedHours.total)}
-                 </div>
-           </div>
-        </div>
+                  ))}
+                </RadioGroup>
 
-        {/* Section: Poste Selection & Shifts */}
-        <div className="space-y-2">
-           <Label className="text-foreground">Poste Actuel</Label>
-            <RadioGroup
-              value={selectedPoste} // Controlled component
-              onValueChange={(value: Poste) => setSelectedPoste(value)}
-              className="flex flex-wrap space-x-4 pt-2"
-            >
-              {POSTE_ORDER.map((poste) => ( // Use defined order
-                <div key={poste} className="flex items-center space-x-2 mb-2">
-                  <RadioGroupItem value={poste} id={`r0-poste-${poste}`} />
-                  <Label htmlFor={`r0-poste-${poste}`} className="font-normal text-foreground">
-                    {poste} Poste <span className="text-muted-foreground text-xs">({POSTE_TIMES[poste]})</span>
-                  </Label>
+                {/* Shift Input Fields (Example - adjust based on actual meaning) */}
+               <div className="grid grid-cols-3 gap-4 pt-2">
+                    {POSTE_ORDER.map((poste, index) => (
+                      <div key={poste}>
+                        <Label htmlFor={`shift-${poste}`} className="text-muted-foreground text-xs">{`${poste} D/F`}</Label>
+                         <Input
+                          id={`shift-${poste}`}
+                          type="text"
+                          value={formData.shifts[index]} // Assuming index matches POSTE_ORDER
+                          onChange={(e) => handleInputChange(e, "shifts", index)}
+                          placeholder={POSTE_TIMES[poste]} // Use times as placeholder
+                          className="h-8"
+                        />
+                      </div>
+                    ))}
                 </div>
-              ))}
-            </RadioGroup>
+            </div>
 
-            {/* Shift Input Fields (Example - adjust based on actual meaning) */}
-           <div className="grid grid-cols-3 gap-4 pt-2">
+            {/* Section: Ventilation */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg text-foreground">Ventilation des Arrêts</h3>
+               <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="w-[80px]">Code</TableHead>
+                          <TableHead>Nature de l'Arrêt (Extérieurs, Matériel, Exploitation)</TableHead>
+                          {/* Add columns for 1er, 2eme, 3eme shifts if needed */}
+                          <TableHead className="text-right w-[150px]">Durée Totale</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {formData.ventilation.map((item, index) => (
+                          <TableRow key={item.code} className="hover:bg-muted/50">
+                            <TableCell className="font-medium">{item.code}</TableCell>
+                            <TableCell>{item.label}</TableCell>
+                            {/* Add cells for shift-specific durations if needed */}
+                            <TableCell className="text-right">
+                              <Input
+                                type="text"
+                                className="h-8 text-sm text-right w-full"
+                                placeholder="ex: 1h 30m"
+                                value={item.duree}
+                                onChange={(e) => handleInputChange(e, "ventilation", index)}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {/* Add Total Row */}
+                         <TableRow className="bg-muted/80 font-semibold">
+                             <TableCell colSpan={2}>TOTAL Arrêts</TableCell>
+                             <TableCell className="text-right">
+                                 <Input
+                                    type="text"
+                                    className="h-8 text-sm text-right w-full bg-transparent font-semibold border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                    readOnly
+                                    value={formatMinutesToHoursMinutes(totalStopMinutes)}
+                                  />
+                             </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                </div>
+            </div>
+
+             {/* Section: Exploitation Metrics */}
+             <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                  <h3 className="font-semibold text-lg text-foreground mb-4">Données d'Exploitation</h3>
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {exploitationLabels.map((item) => (
+                             <div key={item} className="space-y-1">
+                                <Label htmlFor={`expl-${item.toLowerCase().replace(/\s/g, '-')}`} className="text-sm text-muted-foreground">
+                                    {item}
+                                </Label>
+                                <Input
+                                    id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
+                                    type="text"
+                                    className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium' : ''}`}
+                                    value={formData.exploitation[item]}
+                                    onChange={(e) => handleInputChange(e, 'exploitation', item)}
+                                    readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
+                                    disabled={item === "HEURES COMPTEUR"} // Visually indicate it's disabled
+                                />
+                             </div>
+                        ))}
+                   </div>
+                   <div className="mt-4 text-right font-semibold">
+                        Heures de Travail Net (Total Brutes - Total Arrêts): {formatHoursToHoursMinutes(netWorkingHours)}
+                   </div>
+             </div>
+
+
+            {/* Section: Heures Brutes par Poste (Replacing Manque Bull) */}
+            <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+              <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Heures Brutes par Poste (Calculé)</h3>
+              <div className="grid grid-cols-3 gap-4">
                 {POSTE_ORDER.map((poste, index) => (
                   <div key={poste}>
-                    <Label htmlFor={`shift-${poste}`} className="text-muted-foreground text-xs">{`${poste} D/F`}</Label>
-                     <Input
-                      id={`shift-${poste}`}
+                    <Label htmlFor={`gross-hours-${poste}`} className="text-muted-foreground text-xs">{`${poste} Poste`}</Label>
+                    <Input
+                      id={`gross-hours-${poste}`}
                       type="text"
-                      value={formData.shifts[index]} // Assuming index matches POSTE_ORDER
-                      onChange={(e) => handleInputChange(e, "shifts", index)}
-                      placeholder={POSTE_TIMES[poste]} // Use times as placeholder
-                      className="h-8"
+                      value={formData.bulls[index]} // Display formatted gross hours from bulls array
+                      readOnly
+                      className="h-8 bg-muted font-medium" // Style as read-only
                     />
                   </div>
                 ))}
-            </div>
-        </div>
-
-        {/* Section: Ventilation */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-foreground">Ventilation des Arrêts</h3>
-           <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead className="w-[80px]">Code</TableHead>
-                      <TableHead>Nature de l'Arrêt (Extérieurs, Matériel, Exploitation)</TableHead>
-                      {/* Add columns for 1er, 2eme, 3eme shifts if needed */}
-                      <TableHead className="text-right w-[150px]">Durée Totale</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {formData.ventilation.map((item, index) => (
-                      <TableRow key={item.code} className="hover:bg-muted/50">
-                        <TableCell className="font-medium">{item.code}</TableCell>
-                        <TableCell>{item.label}</TableCell>
-                        {/* Add cells for shift-specific durations if needed */}
-                        <TableCell className="text-right">
-                          <Input
-                            type="text"
-                            className="h-8 text-sm text-right w-full"
-                            placeholder="ex: 1h 30m"
-                            value={item.duree}
-                            onChange={(e) => handleInputChange(e, "ventilation", index)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {/* Add Total Row */}
-                     <TableRow className="bg-muted/80 font-semibold">
-                         <TableCell colSpan={2}>TOTAL Arrêts</TableCell>
-                         <TableCell className="text-right">
-                             <Input
-                                type="text"
-                                className="h-8 text-sm text-right w-full bg-transparent font-semibold border-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                readOnly
-                                value={formatMinutesToHoursMinutes(totalStopMinutes)}
-                              />
-                         </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-            </div>
-        </div>
-
-         {/* Section: Exploitation Metrics */}
-         <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-              <h3 className="font-semibold text-lg text-foreground mb-4">Données d'Exploitation</h3>
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {exploitationLabels.map((item) => (
-                         <div key={item} className="space-y-1">
-                            <Label htmlFor={`expl-${item.toLowerCase().replace(/\s/g, '-')}`} className="text-sm text-muted-foreground">
-                                {item}
-                            </Label>
-                            <Input
-                                id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
-                                type="text"
-                                className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium' : ''}`}
-                                value={formData.exploitation[item]}
-                                onChange={(e) => handleInputChange(e, 'exploitation', item)}
-                                readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
-                                disabled={item === "HEURES COMPTEUR"} // Visually indicate it's disabled
-                            />
-                         </div>
-                    ))}
-               </div>
-               <div className="mt-4 text-right font-semibold">
-                    Heures de Travail Net (Total Brutes - Total Arrêts): {formatHoursToHoursMinutes(netWorkingHours)}
-               </div>
-         </div>
-
-
-        {/* Section: Heures Brutes par Poste (Replacing Manque Bull) */}
-        <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
-          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Heures Brutes par Poste (Calculé)</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {POSTE_ORDER.map((poste, index) => (
-              <div key={poste}>
-                <Label htmlFor={`gross-hours-${poste}`} className="text-muted-foreground text-xs">{`${poste} Poste`}</Label>
-                <Input
-                  id={`gross-hours-${poste}`}
-                  type="text"
-                  value={formData.bulls[index]} // Display formatted gross hours from bulls array
-                  readOnly
-                  className="h-8 bg-muted font-medium" // Style as read-only
-                />
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
 
-        {/* Section: Répartition du Temps de Travail Pur */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-lg text-foreground">Répartition du Temps de Travail Pur</h3>
-            {POSTE_ORDER.map((poste, index) => ( // Ensure index matches the intended poste data
-                <div key={poste} className="p-4 border rounded-lg space-y-3">
-                     <h4 className="font-medium text-foreground">{poste} Poste</h4>
+            {/* Section: Répartition du Temps de Travail Pur */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg text-foreground">Répartition du Temps de Travail Pur</h3>
+                {POSTE_ORDER.map((poste, index) => ( // Ensure index matches the intended poste data
+                    <div key={poste} className="p-4 border rounded-lg space-y-3">
+                         <h4 className="font-medium text-foreground">{poste} Poste</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <Label htmlFor={`chantier-${poste}`}>Chantier</Label>
+                                <Input
+                                    id={`chantier-${poste}`}
+                                    type="text"
+                                    value={formData.repartitionTravail[index]?.chantier || ''}
+                                    onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'chantier')}
+                                    className="h-8"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor={`temps-${poste}`}>Temps</Label>
+                                <Input
+                                    id={`temps-${poste}`}
+                                    type="text"
+                                    placeholder="ex: 7h 00m"
+                                    value={formData.repartitionTravail[index]?.temps || ''}
+                                    onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'temps')}
+                                    className="h-8"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor={`imputation-${poste}`}>Imputation</Label>
+                                <Input
+                                    id={`imputation-${poste}`}
+                                    type="text"
+                                    value={formData.repartitionTravail[index]?.imputation || ''}
+                                    onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'imputation')}
+                                    className="h-8"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+             {/* Section: Personnel */}
+             <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                  <h3 className="font-semibold text-lg text-foreground mb-4">Personnel</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       {personnelLabels.map(role => (
+                            <div key={role} className="space-y-1">
+                                <Label htmlFor={`personnel-${role.toLowerCase()}`}>{role}</Label>
+                                <Input
+                                    id={`personnel-${role.toLowerCase()}`}
+                                    type="text"
+                                    className="h-8"
+                                    name={role.toLowerCase()} // Set name for direct mapping
+                                    value={formData.personnel[role.toLowerCase() as keyof FormData['personnel']]}
+                                    onChange={(e) => handleInputChange(e, 'personnel', undefined, role.toLowerCase() as keyof FormData['personnel'])}
+                                />
+                            </div>
+                       ))}
+                   </div>
+             </div>
+
+            {/* Section: Suivi Consommation */}
+            <div className="space-y-6">
+               <h3 className="font-semibold text-lg text-foreground">Suivi Consommation</h3>
+
+               {/* Tricone Sub-section */}
+               <div className="p-4 border rounded-lg space-y-4">
+                    <h4 className="font-medium text-foreground">Tricone</h4>
+                     {/* Machine Info for Tricone */}
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                         <div>
+                            <Label htmlFor="tricone-marque">Marque</Label>
+                            <Input id="tricone-marque" name="machineMarque" value={formData.machineMarque} onChange={(e) => handleInputChange(e, 'machineMarque')} className="h-8"/>
+                         </div>
+                         <div>
+                            <Label htmlFor="tricone-serie">N° de Série</Label>
+                            <Input id="tricone-serie" name="machineSerie" value={formData.machineSerie} onChange={(e) => handleInputChange(e, 'machineSerie')} className="h-8"/>
+                         </div>
+                         <div>
+                            <Label htmlFor="tricone-type">Type</Label>
+                            <Input id="tricone-type" name="machineType" value={formData.machineType} onChange={(e) => handleInputChange(e, 'machineType')} className="h-8"/>
+                         </div>
+                         <div>
+                            <Label htmlFor="tricone-diametre">Diamètre</Label>
+                            <Input id="tricone-diametre" name="machineDiametre" value={formData.machineDiametre} onChange={(e) => handleInputChange(e, 'machineDiametre')} className="h-8"/>
+                         </div>
+                     </div>
+
+                    {/* Pose / Depose */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div>
+                            <Label htmlFor="tricone-pose">Posé (N°)</Label>
+                            <Input
+                                id="tricone-pose"
+                                type="text"
+                                name="pose"
+                                value={formData.tricone.pose}
+                                onChange={(e) => handleInputChange(e, 'tricone', undefined, 'pose')}
+                                 className="h-8"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="tricone-depose">Déposé (N°)</Label>
+                            <Input
+                                id="tricone-depose"
+                                type="text"
+                                name="depose"
+                                value={formData.tricone.depose}
+                                onChange={(e) => handleInputChange(e, 'tricone', undefined, 'depose')}
+                                 className="h-8"
+                            />
+                        </div>
+                         <div>
+                            <Label htmlFor="tricone-cause">Cause de Dépose</Label>
+                            <Select
+                                value={formData.tricone.causeDepose}
+                                onValueChange={(value) => handleSelectChange(value, 'tricone', 'causeDepose')}
+                                >
+                              <SelectTrigger id="tricone-cause" className="w-full h-8">
+                                <SelectValue placeholder="Sélectionner Cause" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {causeDeposeOptions.map((cause, index) => (
+                                  <SelectItem key={index} value={cause}>{cause}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                     <div>
+                        <Label htmlFor="tricone-index-compteur">Index Compteur (Tricone)</Label>
+                        <Input
+                            id="tricone-index-compteur"
+                            type="text"
+                            placeholder="Index au moment de la dépose"
+                            name="indexCompteur"
+                            value={formData.tricone.indexCompteur}
+                            onChange={(e) => handleInputChange(e, 'tricone', undefined, 'indexCompteur')}
+                            className="h-8"
+                         />
+                    </div>
+               </div>
+
+               {/* Gasoil Sub-section */}
+               <div className="p-4 border rounded-lg space-y-4">
+                    <h4 className="font-medium text-foreground">Gasoil</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <Label htmlFor={`chantier-${poste}`}>Chantier</Label>
+                            <Label htmlFor="gasoil-lieu">Lieu d'Appoint</Label>
                             <Input
-                                id={`chantier-${poste}`}
+                                id="gasoil-lieu"
                                 type="text"
-                                value={formData.repartitionTravail[index]?.chantier || ''}
-                                onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'chantier')}
-                                className="h-8"
+                                name="lieuAppoint"
+                                value={formData.gasoil.lieuAppoint}
+                                onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'lieuAppoint')}
+                                 className="h-8"
                             />
                         </div>
                         <div>
-                            <Label htmlFor={`temps-${poste}`}>Temps</Label>
+                            <Label htmlFor="gasoil-index">Index Compteur (Gasoil)</Label>
                             <Input
-                                id={`temps-${poste}`}
+                                id="gasoil-index"
                                 type="text"
-                                placeholder="ex: 7h 00m"
-                                value={formData.repartitionTravail[index]?.temps || ''}
-                                onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'temps')}
-                                className="h-8"
+                                name="indexCompteur"
+                                value={formData.gasoil.indexCompteur}
+                                 onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'indexCompteur')}
+                                  className="h-8"
                             />
                         </div>
                         <div>
-                            <Label htmlFor={`imputation-${poste}`}>Imputation</Label>
+                            <Label htmlFor="gasoil-quantite">Quantité Délivrée</Label>
                             <Input
-                                id={`imputation-${poste}`}
+                                id="gasoil-quantite"
                                 type="text"
-                                value={formData.repartitionTravail[index]?.imputation || ''}
-                                onChange={(e) => handleInputChange(e, 'repartitionTravail', index, 'imputation')}
-                                className="h-8"
+                                 name="quantiteDelivree"
+                                value={formData.gasoil.quantiteDelivree}
+                                onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
+                                 placeholder="en Litres" // Added placeholder
+                                  className="h-8"
                             />
                         </div>
                     </div>
-                </div>
-            ))}
-        </div>
-
-         {/* Section: Personnel */}
-         <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-              <h3 className="font-semibold text-lg text-foreground mb-4">Personnel</h3>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   {personnelLabels.map(role => (
-                        <div key={role} className="space-y-1">
-                            <Label htmlFor={`personnel-${role.toLowerCase()}`}>{role}</Label>
-                            <Input
-                                id={`personnel-${role.toLowerCase()}`}
-                                type="text"
-                                className="h-8"
-                                name={role.toLowerCase()} // Set name for direct mapping
-                                value={formData.personnel[role.toLowerCase() as keyof FormData['personnel']]}
-                                onChange={(e) => handleInputChange(e, 'personnel', undefined, role.toLowerCase() as keyof FormData['personnel'])}
-                            />
-                        </div>
-                   ))}
                </div>
-         </div>
-
-        {/* Section: Suivi Consommation */}
-        <div className="space-y-6">
-           <h3 className="font-semibold text-lg text-foreground">Suivi Consommation</h3>
-
-           {/* Tricone Sub-section */}
-           <div className="p-4 border rounded-lg space-y-4">
-                <h4 className="font-medium text-foreground">Tricone</h4>
-                 {/* Machine Info for Tricone */}
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                     <div>
-                        <Label htmlFor="tricone-marque">Marque</Label>
-                        <Input id="tricone-marque" name="machineMarque" value={formData.machineMarque} onChange={(e) => handleInputChange(e, 'machineMarque')} className="h-8"/>
-                     </div>
-                     <div>
-                        <Label htmlFor="tricone-serie">N° de Série</Label>
-                        <Input id="tricone-serie" name="machineSerie" value={formData.machineSerie} onChange={(e) => handleInputChange(e, 'machineSerie')} className="h-8"/>
-                     </div>
-                     <div>
-                        <Label htmlFor="tricone-type">Type</Label>
-                        <Input id="tricone-type" name="machineType" value={formData.machineType} onChange={(e) => handleInputChange(e, 'machineType')} className="h-8"/>
-                     </div>
-                     <div>
-                        <Label htmlFor="tricone-diametre">Diamètre</Label>
-                        <Input id="tricone-diametre" name="machineDiametre" value={formData.machineDiametre} onChange={(e) => handleInputChange(e, 'machineDiametre')} className="h-8"/>
-                     </div>
-                 </div>
-
-                {/* Pose / Depose */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div>
-                        <Label htmlFor="tricone-pose">Posé (N°)</Label>
-                        <Input
-                            id="tricone-pose"
-                            type="text"
-                            name="pose"
-                            value={formData.tricone.pose}
-                            onChange={(e) => handleInputChange(e, 'tricone', undefined, 'pose')}
-                             className="h-8"
-                        />
-                    </div>
-                    <div>
-                        <Label htmlFor="tricone-depose">Déposé (N°)</Label>
-                        <Input
-                            id="tricone-depose"
-                            type="text"
-                            name="depose"
-                            value={formData.tricone.depose}
-                            onChange={(e) => handleInputChange(e, 'tricone', undefined, 'depose')}
-                             className="h-8"
-                        />
-                    </div>
-                     <div>
-                        <Label htmlFor="tricone-cause">Cause de Dépose</Label>
-                        <Select
-                            value={formData.tricone.causeDepose}
-                            onValueChange={(value) => handleSelectChange(value, 'tricone', 'causeDepose')}
-                            >
-                          <SelectTrigger id="tricone-cause" className="w-full h-8">
-                            <SelectValue placeholder="Sélectionner Cause" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {causeDeposeOptions.map((cause, index) => (
-                              <SelectItem key={index} value={cause}>{cause}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                 <div>
-                    <Label htmlFor="tricone-index-compteur">Index Compteur (Tricone)</Label>
-                    <Input
-                        id="tricone-index-compteur"
-                        type="text"
-                        placeholder="Index au moment de la dépose"
-                        name="indexCompteur"
-                        value={formData.tricone.indexCompteur}
-                        onChange={(e) => handleInputChange(e, 'tricone', undefined, 'indexCompteur')}
-                        className="h-8"
-                     />
-                </div>
-           </div>
-
-           {/* Gasoil Sub-section */}
-           <div className="p-4 border rounded-lg space-y-4">
-                <h4 className="font-medium text-foreground">Gasoil</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <Label htmlFor="gasoil-lieu">Lieu d'Appoint</Label>
-                        <Input
-                            id="gasoil-lieu"
-                            type="text"
-                            name="lieuAppoint"
-                            value={formData.gasoil.lieuAppoint}
-                            onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'lieuAppoint')}
-                             className="h-8"
-                        />
-                    </div>
-                    <div>
-                        <Label htmlFor="gasoil-index">Index Compteur (Gasoil)</Label>
-                        <Input
-                            id="gasoil-index"
-                            type="text"
-                            name="indexCompteur"
-                            value={formData.gasoil.indexCompteur}
-                             onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'indexCompteur')}
-                              className="h-8"
-                        />
-                    </div>
-                    <div>
-                        <Label htmlFor="gasoil-quantite">Quantité Délivrée</Label>
-                        <Input
-                            id="gasoil-quantite"
-                            type="text"
-                             name="quantiteDelivree"
-                            value={formData.gasoil.quantiteDelivree}
-                            onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
-                             placeholder="en Litres" // Added placeholder
-                              className="h-8"
-                        />
-                    </div>
-                </div>
-           </div>
-        </div>
+            </div>
 
 
-        {/* Action Buttons */}
-        <div className="mt-8 flex justify-end space-x-3">
-            <Button variant="outline">Enregistrer Brouillon</Button>
-            <Button>Soumettre Rapport</Button>
-        </div>
-      </CardContent>
+            {/* Action Buttons */}
+            <div className="mt-8 flex justify-end space-x-3">
+                <Button type="button" variant="outline">Enregistrer Brouillon</Button> {/* type="button" to prevent form submission */}
+                <Button type="submit" disabled={counterErrors.some(err => err !== '')}>
+                    Soumettre Rapport
+                </Button> {/* Submit button, disable if errors */}
+            </div>
+          </CardContent>
+      </form>
     </Card>
   );
 }
-
