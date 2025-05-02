@@ -104,14 +104,13 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
   const [module1Stops, setModule1Stops] = useState<ModuleStop[]>([
     {
       id: crypto.randomUUID(),
-      poste: "1er", // Added poste
-      duration: "1·20",
-      nature: "Marque produit d'agissant steril",
+      poste: "", // Added poste
+      duration: "",
+      nature: "",
     },
-    { id: crypto.randomUUID(), poste: "2ème", duration: "20", nature: "" }, // Added poste
   ]);
   const [module2Stops, setModule2Stops] = useState<ModuleStop[]>([
-    { id: crypto.randomUUID(), poste: "3ème", duration: "40", nature: "Lancement Vol. G3" }, // Added poste
+    { id: crypto.randomUUID(), poste: "", duration: "", nature: "" }, // Added poste
   ]);
 
   const [module1TotalDowntime, setModule1TotalDowntime] = useState(0);

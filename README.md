@@ -27,34 +27,41 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   **Enable Firebase Authentication:** Go to Authentication > Sign-in method, and enable the **Email/Password** provider.
     *   **(Optional but helpful):** Note your Project ID from Project Settings.
 
-4.  **Set up Firebase Admin SDK Credentials (for Server-Side Actions like User Creation):**
-    *   **Requirement:** You need service account credentials for server-side operations. Choose **ONE** of the following methods:
+4.  **Set up Firebase Admin SDK Credentials (for Server-Side Actions):**
+    *   **Requirement:** You need valid service account credentials for server-side operations (like user creation/management). Choose **ONE** method below. **Failure to configure this correctly will cause server-side errors.**
     *   **Method 1 (Recommended for Deployment & Security): Environment Variable**
         *   Go to your Firebase Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file containing your service account key will download.
-        *   **Important:** Open the downloaded JSON file. Copy its **entire content**.
+        *   **Important:** Open the downloaded JSON file. **Copy its ENTIRE content.**
         *   Set this entire JSON content as an environment variable named `FIREBASE_SERVICE_ACCOUNT_KEY`.
         *   **How to set environment variables:**
-            *   **Vercel/Netlify/Cloud Run etc.:** Use the platform's dashboard to set the `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable. Paste the full JSON content as the value. Make sure there are no extra spaces or line breaks.
-            *   **Local `.env` file:** You can add `FIREBASE_SERVICE_ACCOUNT_KEY='{...}'` to your `.env` file, replacing `{...}` with `{...}` with the *single-line* JSON content. Be extremely careful not to accidentally commit this file if it contains the actual key. Using a separate `.env.local` (which is typically gitignored) is safer for local keys.
+            *   **Vercel/Netlify/Cloud Run etc.:** Use the platform's dashboard to set the `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable. Paste the full, valid JSON content as the value. Ensure there are no extra spaces or modifications.
+            *   **Local `.env` file:** You can add `FIREBASE_SERVICE_ACCOUNT_KEY='{...}'` to your `.env` file (or preferably `.env.local`), replacing `{...}` with the *single-line* JSON content. Be **extremely careful** not to commit this file if it contains the actual key. Using `.env.local` (which is typically gitignored) is safer. Ensure the JSON is valid.
+            ```dotenv
+            # Example for .env.local (MAKE SURE THIS FILE IS IN .gitignore)
+            FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", "project_id": "your-project-id", ...}'
+            ```
     *   **Method 2 (Easier for Local Development, Use with Caution): Local File**
         *   Go to your Firebase Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file will download.
-        *   Rename the downloaded file to exactly `serviceAccountKey.json`.
+        *   Rename the downloaded file to **exactly** `serviceAccountKey.json`.
         *   Place this `serviceAccountKey.json` file in the **root directory** of your project (the same level as `package.json`).
-        *   **CRITICAL:** Add `serviceAccountKey.json` to your `.gitignore` file immediately to prevent accidentally committing your secret key to version control.
+        *   Ensure the file content is the complete, valid JSON provided by Firebase.
+        *   **CRITICAL:** Add `serviceAccountKey.json` to your `.gitignore` file **immediately** to prevent accidentally committing your secret key to version control.
         ```gitignore
         # .gitignore
         serviceAccountKey.json
         .env.local
         .env.*.local
         ```
+    *   **Verification:** When the server starts, check the console logs. Look for messages like "Firebase Admin SDK: Initialization successful..." or errors indicating problems reading/parsing credentials.
 
 5.  **Configure Client-Side Environment Variables:**
     *   Create a file named `.env` in the root of your project (if it doesn't exist). You can copy `.env.example` if provided.
     *   Open the `.env` file.
     *   Add the following variables, replacing the placeholder values (`YOUR_...`) with your actual Firebase project configuration values from the `firebaseConfig` object you copied in Step 3 (ensure they are prefixed with `NEXT_PUBLIC_`):
         ```dotenv
+        # --- Client-Side Firebase Config ---
         NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_API_KEY
         NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=YOUR_AUTH_DOMAIN
         NEXT_PUBLIC_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
@@ -62,16 +69,19 @@ This is a Next.js application for daily job reporting using Firebase for authent
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_MESSAGING_SENDER_ID
         NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_APP_ID
         NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_MEASUREMENT_ID # Optional
-        NEXT_PUBLIC_FIREBASE_DYNAMIC_LINKS_API_KEY=AIzaSyAbjvD-BEdzhaZzIw2AYnMYNQL8egjn_Xw # Add this if needed
+        # You might need this if using dynamic links (seems unlikely for this app, but included)
+        NEXT_PUBLIC_FIREBASE_DYNAMIC_LINKS_API_KEY=AIzaSy... # Example, replace if needed
 
-        # For Genkit / Google AI (Optional)
+        # --- Genkit / Google AI (Optional) ---
         GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_AI_API_KEY
 
-        # --- Admin SDK ---
-        # Use this OR the serviceAccountKey.json file, not both are strictly required to be set *here*
-        # If using the local file method, this can be left blank.
-        # If using the env var method, this MUST contain the full JSON content.
-        FIREBASE_SERVICE_ACCOUNT_KEY=
+        # --- Server-Side Admin SDK (Only one needed - Env Var or Local File) ---
+        # Method 1: Environment Variable (Paste the FULL JSON content here or set in deployment environment)
+        # Ensure it's a single line if pasting directly into .env / .env.local
+        FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", ...}'
+
+        # Method 2: Local File (Leave FIREBASE_SERVICE_ACCOUNT_KEY empty or remove it if using serviceAccountKey.json)
+        # FIREBASE_SERVICE_ACCOUNT_KEY=
 
         # --- Admin User Identification ---
         # Option 1 (Simpler): Set this to the UID of the user you manually create as admin in Step 6.
@@ -83,7 +93,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
         # it sets a custom claim { admin: true }. You would then need to modify
         # src/hooks/useAuth.tsx to check `idTokenResult.claims.admin === true` instead of NEXT_PUBLIC_ADMIN_UID.
         ```
-    *   **Important:** Double-check `NEXT_PUBLIC_FIREBASE_API_KEY`. An invalid key is a common cause of errors.
+    *   **Important:** Double-check `NEXT_PUBLIC_FIREBASE_API_KEY`. An invalid or missing key is a very common cause of client-side errors.
 
 6.  **IMPORTANT: Create the Initial Admin User in Firebase Console (Required):**
     *   Go to your Firebase project > Authentication > Users.
@@ -101,7 +111,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
     # or
     pnpm dev
     ```
-    *   *(Restart the server if you modified `.env` files)*
+    *   *(Restart the server if you modified `.env` or `serviceAccountKey.json`)*
 
 8.  Open [http://localhost:9002](http://localhost:9002) (or the specified port) with your browser.
 
@@ -109,6 +119,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   Use the admin credentials you created manually (e.g., `j.abbay@admin.com` / `123456`).
     *   If login fails with "invalid credentials", double-check the email/password and ensure the user exists in the Firebase console.
     *   If login fails with API key errors, double-check your `NEXT_PUBLIC_FIREBASE_API_KEY` in `.env`.
+    *   If server-side actions fail (like creating users), check the server console logs for errors related to "Firebase Admin SDK initialization". Verify Step 4.
     *   Once logged in, if you set `NEXT_PUBLIC_ADMIN_UID` correctly, you should see the "Admin Panel" button. Click it, then "Create New User" to add others.
 
 ## Features
@@ -134,10 +145,12 @@ This is a Next.js application for daily job reporting using Firebase for authent
 
 ## Troubleshooting
 
-*   **`Firebase: Error (auth/invalid-api-key)`:** Your `NEXT_PUBLIC_FIREBASE_API_KEY` in `.env` is likely incorrect or missing. Verify it against your Firebase project settings.
-*   **`Firebase: Error (auth/invalid-credential)`:** The email or password used for login is incorrect, OR the user does not exist in Firebase Authentication. Ensure you created the user manually first (Step 6).
-*   **`Firebase Admin SDK could not be initialized` (Server log):** Your server-side Admin SDK credentials are not configured correctly. Check Step 4: ensure either `FIREBASE_SERVICE_ACCOUNT_KEY` env var is set (with the full JSON content) OR `serviceAccountKey.json` is present in the project root and readable by the server process. Check server logs for more detailed errors from `src/lib/firebase/admin.ts`.
+*   **`Firebase: Error (auth/invalid-api-key)` (Client-side):** Your `NEXT_PUBLIC_FIREBASE_API_KEY` in `.env` is likely incorrect or missing. Verify it against your Firebase project settings. Restart the dev server after changes.
+*   **`Firebase: Error (auth/invalid-credential)` (Client-side):** The email or password used for login is incorrect, OR the user does not exist in Firebase Authentication. Ensure you created the user manually first (Step 6).
+*   **`Firebase Admin SDK could not be initialized` (Server log):** Your server-side Admin SDK credentials are not configured correctly (Step 4). Check server logs for detailed errors from `src/lib/firebase/admin.ts`.
+    *   **If using Env Var:** Ensure `FIREBASE_SERVICE_ACCOUNT_KEY` is set in the server environment (or `.env.local`) and contains the **complete, valid JSON** string. Check for typos or truncation.
+    *   **If using Local File:** Ensure `serviceAccountKey.json` exists in the project root, is named correctly, contains valid JSON, and is readable by the server process. Make sure it's in `.gitignore`.
 *   **`Cannot find module 'serviceAccountKey.json'` (Server log):** If using the local file method, the server cannot find the file. Ensure it's named correctly and placed in the project root.
+*   **`Error parsing service account JSON` (Server log):** The content of your `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable or `serviceAccountKey.json` file is not valid JSON. Copy it directly from Firebase again.
 *   **Hydration Errors:** Often caused by rendering differences between server and client. Check for browser-specific APIs (`window`, `localStorage`) used outside `useEffect` or conditional rendering based on non-deterministic values (`Math.random()`, `new Date()`) before hydration.
-*   **404 Errors:** Double-check your page routes and component imports. Ensure files exist and are correctly named.
-
+*   **404 Errors:** Double-check your page routes (`src/app/.../page.tsx`) and component imports. Ensure files exist and are correctly named.

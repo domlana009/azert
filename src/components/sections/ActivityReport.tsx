@@ -159,20 +159,15 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
 
   // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
   const [stops, setStops] = useState<Stop[]>([
-    { id: crypto.randomUUID(), duration: "4h 10", nature: "Manque Produit" },
-    {
-      id: crypto.randomUUID(),
-      duration: "1h 15", // Changed format for testing
-      nature: "Attent Saturation SiCo",
-    },
+    { id: crypto.randomUUID(), duration: "", nature: "" },
   ]);
   // Updated initial state for vibrator counters to include poste
   const [vibratorCounters, setVibratorCounters] = useState<Counter[]>([
-    { id: crypto.randomUUID(), poste: "1er", start: "9341.0", end: "9395.30" }, // Example values with poste
+    { id: crypto.randomUUID(), poste: "", start: "", end: "" }, // Example values with poste
   ]);
   // State for liaison counters - Updated initial state to include poste
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
-    { id: crypto.randomUUID(), poste: "2ème", start: "100.5", end: "105.75" }, // Example values with poste
+    { id: crypto.randomUUID(), poste: "", start: "", end: "" }, // Example values with poste
   ]);
   // Updated state for stock entries - Added poste
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([
