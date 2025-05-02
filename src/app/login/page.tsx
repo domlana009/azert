@@ -63,7 +63,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Utilisateur</Label> {/* Changed label from Email to Utilisateur */}
+              <Label htmlFor="email">User</Label> {/* Changed label from Utilisateur to User */}
               <Input
                 id="email"
                 type="email" // Keep type as email for Firebase Auth compatibility
@@ -97,4 +97,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
 
