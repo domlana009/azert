@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useRef } from 'react'; // Added useRef
 import { useAuth } from '@/hooks/useAuth.tsx'; // Correct extension
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ export default function CreateUserPage() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null); // Create a ref for the form
 
   // Redirect non-admins or unauthenticated users
   React.useEffect(() => {
@@ -40,7 +41,8 @@ export default function CreateUserPage() {
           description: result.message,
         });
         // Optionally reset form or redirect
-        event.currentTarget.reset(); // Reset form fields
+        // Reset form using the ref
+        formRef.current?.reset();
       } else {
         setError(result.message);
         toast({
@@ -66,7 +68,8 @@ export default function CreateUserPage() {
           <CardTitle>Créer un Nouvel Utilisateur</CardTitle>
           <CardDescription>Entrez les informations pour le nouvel utilisateur.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
+        {/* Attach the ref to the form */}
+        <form onSubmit={handleSubmit} ref={formRef}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
