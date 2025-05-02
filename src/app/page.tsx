@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react"; // Removed useEffect
+import { useState, useEffect } from "react"; // Added useEffect back for client-side checks
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Bell, Calendar as CalendarIcon } from "lucide-react"; // Added CalendarIcon
@@ -49,6 +49,22 @@ export default function Home() {
   // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er");
   const { user, loading, logout } = useAuth(); // Use the auth hook
   const router = useRouter(); // Initialize router
+  const [isClient, setIsClient] = useState(false); // State to track client-side mount
+
+   // Ensure client-side execution for redirection
+   useEffect(() => {
+     setIsClient(true);
+   }, []);
+
+
+   // Redirect logic moved inside useEffect to ensure it runs client-side after hydration
+   useEffect(() => {
+     // Only redirect if on the client, not loading, and user is not logged in
+     if (isClient && !loading && !user) {
+       router.push('/login');
+     }
+   }, [isClient, loading, user, router]);
+
 
   // Helper function to get formatted date string, handles undefined case
   const getFormattedDate = (date: Date | undefined, options: Intl.DateTimeFormatOptions): string => {
@@ -66,28 +82,35 @@ export default function Home() {
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login'); // Redirect to login page after logout
+      // Redirect handled by the useEffect hook above
+      // router.push('/login'); // Remove explicit redirect here
     } catch (error) {
       console.error("Logout failed:", error);
       // Optionally show an error message to the user
     }
   };
 
-    // Redirect to login if not authenticated and not loading
-  // Note: This check might need adjustment depending on how you handle protected routes
-  // For a simple case, we redirect from the main page if not logged in.
-  if (loading) {
-    return <div>Chargement...</div>; // Show loading state
+    // Show loading state while authentication status is being determined
+  if (loading || !isClient) { // Also wait for client mount
+    return <div className="flex justify-center items-center min-h-screen">Chargement...</div>; // Show loading state
   }
 
-  if (!user && typeof window !== 'undefined') { // Add check for window to prevent server-side redirect errors
-     router.push('/login'); // Redirect if not logged in
-     return null; // Return null to prevent rendering the rest of the page during redirect
-  }
+   // If useEffect determined redirection is needed, return null while it happens
+   if (!user) {
+     return null; // Prevent rendering the main content if not logged in
+   }
+
 
   // TODO: Fetch previous day's 3rd shift end counter data here based on selectedDate
-  // Example placeholder:
-  const previousDayThirdShiftEnd = "9341.0"; // Replace with actual fetched data or null
+  // Example placeholder: Needs to be dynamic based on selectedDate
+   const getPreviousDayThirdShiftEnd = (currentDate: Date | undefined): string | null => {
+     if (!currentDate) return null;
+     // Logic to fetch or determine the value for the day before currentDate
+     // This is just a placeholder
+     console.log("Fetching previous day 3rd shift end for:", currentDate);
+     return "9341.0"; // Replace with actual fetched data or null
+   };
+   const previousDayThirdShiftEnd = getPreviousDayThirdShiftEnd(selectedDate);
 
 
   return (
