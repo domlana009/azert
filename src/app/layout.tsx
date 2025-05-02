@@ -22,7 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="fr">{/* Ensure no whitespace here */}
+      {/* Apply the Inter font variable to the body */}
       <body className={`${inter.variable} antialiased`}>
          {/* Wrap the application with AuthProvider */}
         <AuthProvider>
