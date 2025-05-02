@@ -32,21 +32,22 @@ if (!getApps().length) {
   // Validate essential config values before initializing
   if (!isApiKeyPotentiallyValid(firebaseConfig.apiKey)) {
     console.error(`Firebase API Key is missing or invalid: '${firebaseConfig.apiKey}'. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is set correctly.`);
-  }
-  if (!firebaseConfig.projectId) {
+    // You might want to throw an error here or handle it differently depending on your app's needs
+  } else if (!firebaseConfig.projectId) {
      console.error("Firebase Project ID is missing. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_PROJECT_ID is set.");
-  }
-  // Add more checks as needed (e.g., authDomain)
-
-  try {
-     app = initializeApp(firebaseConfig);
-     // Initialize Firebase Authentication and get a reference to the service only after successful app initialization
-     auth = getAuth(app);
-     console.log("Firebase initialized successfully."); // Log success
-  } catch (error: any) { // Catch specific error type if possible
-     console.error("Error initializing Firebase:", error.message || error);
-     // Handle initialization error (e.g., show a message to the user)
-     // You might want to set a global error state here
+     // Throw or handle error
+  } else {
+      // Only initialize if essential config seems present and valid
+      try {
+         app = initializeApp(firebaseConfig);
+         // Initialize Firebase Authentication and get a reference to the service only after successful app initialization
+         auth = getAuth(app);
+         console.log("Firebase initialized successfully."); // Log success
+      } catch (error: any) { // Catch specific error type if possible
+         console.error("Error initializing Firebase:", error.message || error);
+         // Handle initialization error (e.g., show a message to the user)
+         // You might want to set a global error state here
+      }
   }
 
 } else {
@@ -62,8 +63,9 @@ if (!getApps().length) {
 
 
 // Check if auth initialization failed after trying
-if (!auth && app) { // Only log if app was potentially initialized but auth failed
-  console.error("Firebase Authentication could not be initialized. Check Firebase config and potential initialization errors above.");
+if (!auth) { // Only log if auth is still null after attempts
+  console.error("Firebase Authentication could not be initialized. This is often due to missing or invalid configuration in your .env file (e.g., NEXT_PUBLIC_FIREBASE_API_KEY). Please verify your Firebase project settings.");
 }
 
+// Export auth, which might be null if initialization failed
 export { app, auth };
