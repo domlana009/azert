@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  // Rename email state to userEmail to avoid confusion and fix ReferenceError
+  const [userEmail, setUserEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,8 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // Use userEmail state variable for login
+      await signInWithEmailAndPassword(auth, userEmail, password);
       toast({ // Show success toast
         title: "Connexion réussie",
         description: "Vous allez être redirigé.",
@@ -41,6 +43,8 @@ export default function LoginPage() {
         errorMessage = "Format d'utilisateur invalide (doit être un email)."; // Updated message
       } else if (err.code === 'auth/invalid-api-key') {
          errorMessage = "Erreur de configuration : Clé API Firebase invalide.";
+      } else if (err.code === 'auth/missing-password') {
+         errorMessage = "Mot de passe manquant.";
       }
       setError(errorMessage);
        toast({ // Show error toast
@@ -69,8 +73,8 @@ export default function LoginPage() {
                 type="email" // Keep type as email for Firebase Auth compatibility
                 placeholder="utilisateur@example.com" // Keep placeholder example format
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={userEmail} // Use userEmail state variable
+                onChange={(e) => setUserEmail(e.target.value)} // Use setUserEmail setter
                 disabled={loading}
               />
             </div>
@@ -97,5 +101,4 @@ export default function LoginPage() {
     </div>
   );
 }
-
 
