@@ -47,7 +47,7 @@ if (!serviceAccountJson) {
 const initializeFirebaseAdmin = (): admin.auth.Auth | null => {
   // Check if the SDK is already initialized
   if (admin.apps.length > 0) {
-    console.log("Firebase Admin SDK: Already initialized.");
+    console.log(`Firebase Admin SDK: Already initialized (was initialized via ${initializedVia || 'unknown method'}).`);
     return admin.auth(); // Return existing auth instance
   }
 
@@ -62,7 +62,7 @@ const initializeFirebaseAdmin = (): admin.auth.Auth | null => {
         serviceAccount = JSON.parse(serviceAccountJson);
         // Basic validation of parsed content
         if (!serviceAccount || typeof serviceAccount !== 'object' || !serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-            console.error("Firebase Admin SDK: Parsed service account JSON is invalid or missing required fields (project_id, private_key, client_email). Please verify the content of the credentials.");
+            console.error(`Firebase Admin SDK: Parsed service account JSON from ${initializedVia} is invalid or missing required fields (project_id, private_key, client_email). Please verify the content of the credentials.`);
             // Optionally log the structure for debugging (excluding private key)
             // console.error("Parsed structure (invalid):", { projectId: serviceAccount?.project_id, clientEmail: serviceAccount?.client_email });
             return null;
@@ -88,6 +88,15 @@ const initializeFirebaseAdmin = (): admin.auth.Auth | null => {
      console.error(`Firebase Admin SDK: CRITICAL - Error during admin.initializeApp() via ${initializedVia}. Error: ${error.message}`);
      // Log the structure of the service account (excluding private key) for debugging
      console.error("Service Account details used (check project_id, client_email):", { projectId: serviceAccount.project_id, clientEmail: serviceAccount.client_email });
+     // Check for common specific errors
+     if (error.code === 'app/duplicate-app') {
+         console.warn("Firebase Admin SDK: Attempted to initialize an app that already exists. This might indicate an issue in the initialization logic flow.");
+         // If duplicate app error occurs, try returning the existing default app's auth service
+         if (admin.apps.length > 0 && admin.apps[0]) {
+             console.log("Firebase Admin SDK: Returning auth service from existing default app.");
+             return admin.apps[0].auth();
+         }
+     }
      return null;
   }
 
@@ -109,7 +118,7 @@ const adminAuthInstance = initializeFirebaseAdmin();
 if (!adminAuthInstance) {
    // Ensure this error message clearly indicates the user needs to check configuration.
    // It repeats the critical messages logged above but ensures the process stops.
-   throw new Error("Firebase Admin SDK could not be initialized. Check server logs for details (scroll up). Common causes are missing or invalid service account credentials (env var 'FIREBASE_SERVICE_ACCOUNT_KEY' or local file 'serviceAccountKey.json'). Please verify your setup according to the README.md.");
+   throw new Error("Firebase Admin SDK could not be initialized. Check server logs for details (scroll up). Common causes are missing, empty, or invalid service account credentials (env var 'FIREBASE_SERVICE_ACCOUNT_KEY' or local file 'serviceAccountKey.json'). Please verify your setup according to the README.md, ensuring the credentials JSON is complete and correctly formatted.");
 }
 
 export const adminAuth = adminAuthInstance;
