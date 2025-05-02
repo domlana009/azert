@@ -104,13 +104,13 @@ type Park = 'PARK 1' | 'PARK 2' | 'PARK 3';
 type StockType = 'NORMAL' | 'OCEANE' | 'PB30';
 type StockTime = 'HEURE DEBUT STOCK';
 
-// Updated Poste times and order
+// Updated Poste times and order - Order must match validation logic: 3, 1, 2
 const POSTE_TIMES: Record<Poste, string> = {
-  "3ème": "22:30 - 06:30",
-  "1er": "06:30 - 14:30",
-  "2ème": "14:30 - 22:30",
+  "3ème": "22:30 - 06:30", // Previous day to current day
+  "1er": "06:30 - 14:30",  // Current day
+  "2ème": "14:30 - 22:30", // Current day
 };
-const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
+const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"]; // Consistent order for UI and logic
 const PARKS: Park[] = ['PARK 1', 'PARK 2', 'PARK 3'];
 const STOCK_TYPES: StockType[] = ['NORMAL', 'OCEANE', 'PB30'];
 const STOCK_TIME_LABEL: StockTime = 'HEURE DEBUT STOCK';
@@ -125,7 +125,7 @@ interface Stop {
 // Updated Counter interface: added poste, removed total, added optional error field
 interface Counter {
     id: string;
-    poste?: Poste | ''; // Added optional Poste field
+    poste: Poste | ''; // Changed to mandatory with empty string default
     start: string;
     end: string;
     error?: string; // Optional error message for this entry
@@ -134,7 +134,7 @@ interface Counter {
 // Interface for Liaison Counters (same structure as Counter) - Added poste
 interface LiaisonCounter {
     id: string;
-    poste?: Poste | ''; // Added optional Poste field
+    poste: Poste | ''; // Changed to mandatory with empty string default
     start: string;
     end: string;
     error?: string; // Optional error message for this entry
@@ -177,8 +177,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([
       { id: crypto.randomUUID(), poste: '', park: '', type: '', quantity: '', startTime: '' } // Start with one empty entry including poste
   ]);
-  // State for the single "Heure Debut Stock" time
-  const [stockStartTime, setStockStartTime] = useState('');
+  // State for the single "Heure Debut Stock" time - This seems redundant if startTime is in StockEntry
+  // const [stockStartTime, setStockStartTime] = useState('');
 
 
   const [totalDowntime, setTotalDowntime] = useState(0);
@@ -223,12 +223,22 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         type: 'vibrator' | 'liaison',
         currentStartStr: string,
         currentEndStr: string,
-        currentPoste?: Poste | '',
-        previousDayData?: string | null // Only needed for 1er poste vibrator check
+        currentPoste: Poste | '', // Mandatory Poste
+        previousDayData?: string | null // Only needed for 1er poste check
     ): string | undefined => {
         const startVal = validateAndParseCounterValue(currentStartStr);
         const endVal = validateAndParseCounterValue(currentEndStr);
         const errorSetter = type === 'vibrator' ? setVibratorCounterErrors : setLiaisonCounterErrors;
+
+         // 0. Poste Validation (Must be selected if start or end has value)
+         if ((currentStartStr || currentEndStr) && !currentPoste) {
+             return "Veuillez sélectionner un poste.";
+         }
+          // Skip further validation if poste is not selected yet, even if inputs are empty
+         if (!currentPoste && !currentStartStr && !currentEndStr) {
+             return undefined;
+         }
+
 
         // Basic Validation
         if (startVal === null && currentStartStr !== '' && currentStartStr !== '.' && currentStartStr !== ',') return "Début invalide.";
@@ -243,60 +253,48 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
              }
         }
 
-        // Sequential Validation (based on Poste)
+        // Sequential Validation (based on Poste order: 3ème -> 1er -> 2ème)
         const currentIndex = counters.findIndex(c => c.id === counterId);
-        if (currentIndex === -1 || !currentPoste) return undefined; // Cannot validate sequence without index or poste
+        if (currentIndex === -1 || !currentPoste) return undefined; // Should not happen if poste validation passed
 
-        // Find the correct index for the current poste in POSTE_ORDER ('3ème', '1er', '2ème')
-        const posteIndexInOrder = POSTE_ORDER.indexOf(currentPoste); // 0 for 3eme, 1 for 1er, 2 for 2eme
+        // Find the counter for the previous logical poste
+        let expectedPreviousFinStr: string | undefined | null = undefined;
+        let previousPosteName: string = '';
 
-        // Find the counter for the previous logical poste (handling wrap-around for 1er)
-        let previousCounter: Counter | LiaisonCounter | undefined = undefined;
-        let expectedPreviousFinStr: string | undefined | null = undefined; // Can be null if prev day data is null
+         if (currentPoste === '1er') { // Current is 1er, check against previous day's 3ème
+             expectedPreviousFinStr = previousDayData;
+             previousPosteName = "3ème (veille)";
+             if (expectedPreviousFinStr === undefined) expectedPreviousFinStr = null; // Treat undefined prop as skip
+         } else if (currentPoste === '2ème') { // Current is 2ème, check against current day's 1er
+             const previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === '1er');
+             expectedPreviousFinStr = previousCounter?.end;
+             previousPosteName = "1er";
+         } else if (currentPoste === '3ème') { // Current is 3ème, check against current day's 2ème
+             const previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === '2ème');
+             expectedPreviousFinStr = previousCounter?.end;
+             previousPosteName = "2ème";
+         }
 
-        if (posteIndexInOrder === 1) { // Current is 1er Poste (index 1 in POSTE_ORDER)
-            // Need previous day's 3rd shift end (passed as prop for vibrators)
-            if (type === 'vibrator') {
-                expectedPreviousFinStr = previousDayData; // Use prop
-                 // If previousDayData is null, it means no previous data, skip check
-                 // If undefined, prop wasn't passed, maybe warn or skip
-                 if (expectedPreviousFinStr === undefined) {
-                    // console.warn("Previous day 3rd shift data missing for 1er poste validation.");
-                    expectedPreviousFinStr = null; // Treat as skip
-                 }
-            } else {
-                 // Need to find the 3rd poste *of the same day* if it exists in the liaison list
-                 previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === '3ème');
-                 expectedPreviousFinStr = previousCounter?.end;
-            }
 
-        } else if (posteIndexInOrder > 0) { // Current is 2eme (index 2) or 3eme (index 0) Poste
-            // Determine the previous poste based on POSTE_ORDER
-            const previousPosteIndex = (posteIndexInOrder === 0) ? 2 : posteIndexInOrder - 1; // If current is 3eme (idx 0), prev is 2eme (idx 2). Else, just subtract 1.
-            const previousPoste = POSTE_ORDER[previousPosteIndex];
-            // Find a counter with the previous poste in the *same list* (vibrator or liaison)
-            previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === previousPoste);
-            expectedPreviousFinStr = previousCounter?.end;
-        }
-         // else: Current is 3eme Poste (index 0) - No check needed against 2eme of previous day in this logic
-
-        // Perform the check if an expected previous 'fin' value exists
+        // Perform the check if an expected previous 'fin' value exists and is valid
         if (expectedPreviousFinStr !== undefined && expectedPreviousFinStr !== null && currentStartStr !== '') {
             const expectedPreviousFin = parseFloat(expectedPreviousFinStr);
             if (isNaN(expectedPreviousFin)) {
-                 // This case might happen if the previous counter's 'fin' is invalid itself
-                 // We might want to propagate an error or handle it gracefully
-                 // For now, let's skip the sequential check if the reference is invalid
+                 // Skip check if reference is invalid (e.g., previous entry has error or is empty)
                  // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid.`);
             } else if (startVal !== null && startVal !== expectedPreviousFin) {
-                 const prevPosteName = posteIndexInOrder === 1 ? "3ème (veille)" : POSTE_ORDER[(posteIndexInOrder === 0) ? 2 : posteIndexInOrder - 1];
-                 return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFin}) du ${prevPosteName} Poste.`;
+                 return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFin}) du ${previousPosteName} Poste.`;
              }
-        } else if (expectedPreviousFinStr === null) {
-             // Previous data explicitly not available (e.g., first day or no 3rd shift prev day)
-             // No sequential validation possible/needed for this boundary.
+        } else if (expectedPreviousFinStr === null && currentPoste === '1er') {
+             // Previous day data explicitly not available - OK for 1er poste start
+         } else if (expectedPreviousFinStr === undefined && currentPoste !== '1er') {
+             // Previous counter in the sequence not found or its 'fin' is empty.
+             // This might be okay if it's the first entry for that sequence (e.g., first 3ème or first 2ème).
+             // However, if other entries for the previous poste *do* exist, this is likely an error, but harder to detect perfectly without full sequence analysis.
+             // For now, we allow it, assuming user might fill out of order.
+             // A stricter validation could check if *any* previous poste counter exists and require its 'fin'.
          }
-         // else: No previous counter found, or previous 'fin' is empty, or current 'start' is empty - skip sequence check.
+         // else: current 'start' is empty - skip sequence check.
 
 
         return undefined; // No error
@@ -310,16 +308,17 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         const newVibratorErrors: Record<string, string> = {};
         const validVibratorCounters = vibratorCounters.filter(c => {
             const error = validateCounterEntry(c.id, vibratorCounters, 'vibrator', c.start, c.end, c.poste, previousDayThirdShiftEnd);
-             if ((c.start || c.end) && !c.poste) { // Also check if poste is missing when values exist
-                 newVibratorErrors[c.id] = "Veuillez sélectionner un poste.";
-                 vibratorValidationPassed = false;
-                 return false;
-             }
             if (error) {
                 newVibratorErrors[c.id] = error;
                 vibratorValidationPassed = false;
-                return false;
+                return false; // Exclude from total calculation if error
             }
+            // Check if start or end has value but poste is missing (should be caught by validateCounterEntry now)
+            // if ((c.start || c.end) && !c.poste) {
+            //     newVibratorErrors[c.id] = "Veuillez sélectionner un poste.";
+            //     vibratorValidationPassed = false;
+            //     return false;
+            // }
             return true; // Valid entry for total calculation
         });
 
@@ -329,12 +328,10 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         const vibratorTotal = calculateTotalCounterMinutes(validVibratorCounters);
         setTotalVibratorMinutes(vibratorTotal);
 
-        // Check if total duration exceeds 24h (might need adjustment based on how postes overlap)
-        // This simple check might be too basic if postes can run concurrently.
         if (vibratorTotal > TOTAL_PERIOD_MINUTES) {
-            console.warn("Total vibreur duration exceeds 24h period.");
-            // Consider setting a general error or flagging relevant counters
-             setHasVibratorErrors(true);
+             setHasVibratorErrors(true); // Also set error if total exceeds 24h
+             // Optionally add a specific general error message for exceeding total
+             console.warn("Total vibreur duration exceeds 24h period.");
         }
 
 
@@ -342,18 +339,18 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         let liaisonValidationPassed = true;
         const newLiaisonErrors: Record<string, string> = {};
         const validLiaisonCounters = liaisonCounters.filter(c => {
-            // Liaison validation doesn't need previous day data prop
-             const error = validateCounterEntry(c.id, liaisonCounters, 'liaison', c.start, c.end, c.poste);
-              if ((c.start || c.end) && !c.poste) { // Also check if poste is missing
-                 newLiaisonErrors[c.id] = "Veuillez sélectionner un poste.";
-                 liaisonValidationPassed = false;
-                 return false;
-             }
-             if (error) {
+             // Liaison validation doesn't need previous day data prop for its 1er poste check (uses same-day 3eme)
+             const error = validateCounterEntry(c.id, liaisonCounters, 'liaison', c.start, c.end, c.poste, undefined); // Pass undefined for prev day data
+              if (error) {
                 newLiaisonErrors[c.id] = error;
                 liaisonValidationPassed = false;
                 return false;
             }
+            // if ((c.start || c.end) && !c.poste) { // Also check if poste is missing
+            //      newLiaisonErrors[c.id] = "Veuillez sélectionner un poste.";
+            //      liaisonValidationPassed = false;
+            //      return false;
+            //  }
             return true;
         });
 
@@ -364,8 +361,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         setTotalLiaisonMinutes(liaisonTotal);
 
         if (liaisonTotal > TOTAL_PERIOD_MINUTES) {
-            console.warn("Total liaison duration exceeds 24h period.");
-             setHasLiaisonErrors(true);
+             setHasLiaisonErrors(true); // Set error if total exceeds 24h
+             console.warn("Total liaison duration exceeds 24h period.");
         }
 
          // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -495,14 +492,27 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
              updatedEntry.type = ''; // Reset type/quantity when park changes
              updatedEntry.quantity = '';
               updatedEntry.startTime = ''; // Reset start time if park changes
+              // If park is unchecked, clear park field
+              if (value === false) updatedEntry.park = '';
          } else if (field === 'type') {
             updatedEntry.quantity = ''; // Reset quantity when type changes
              updatedEntry.startTime = ''; // Reset start time if type changes
+              // If type is unchecked, clear type field
+              if (value === false) updatedEntry.type = '';
          } else if (field === 'startTime') {
               // Maybe reset other fields if start time is the primary identifier?
               updatedEntry.park = '';
               updatedEntry.type = '';
               updatedEntry.quantity = '';
+               // If startTime checkbox is unchecked (value becomes false or empty string), clear startTime
+              if (!value) updatedEntry.startTime = '';
+               // If startTime checkbox is checked, ensure it has a default or previous value
+              else if (typeof value === 'boolean' && value === true) {
+                   // This case is tricky, maybe set to '00:00' or retain previous? Let's retain for now if exists.
+                  updatedEntry.startTime = entry.startTime || '00:00';
+              } else if (typeof value === 'string') {
+                   updatedEntry.startTime = value; // Update with the time input value
+              }
          }
 
          return updatedEntry;
@@ -524,12 +534,23 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         // Focus the first input with an error (example)
         const firstVibratorErrorId = Object.keys(vibratorCounterErrors).find(id => vibratorCounterErrors[id]);
         if (firstVibratorErrorId) {
-            document.getElementById(`vibrator-start-${firstVibratorErrorId}`)?.focus();
+            // Try focusing poste, then start, then end
+            const posteEl = document.getElementById(`vibrator-poste-trigger-${firstVibratorErrorId}`);
+            const startEl = document.getElementById(`vibrator-start-${firstVibratorErrorId}`);
+            const endEl = document.getElementById(`vibrator-end-${firstVibratorErrorId}`);
+            if (vibratorCounterErrors[firstVibratorErrorId]?.includes("poste") && posteEl) posteEl.focus();
+            else if (startEl) startEl.focus();
+            else if (endEl) endEl.focus();
             return;
         }
         const firstLiaisonErrorId = Object.keys(liaisonCounterErrors).find(id => liaisonCounterErrors[id]);
          if (firstLiaisonErrorId) {
-             document.getElementById(`liaison-start-${firstLiaisonErrorId}`)?.focus();
+             const posteEl = document.getElementById(`liaison-poste-trigger-${firstLiaisonErrorId}`);
+             const startEl = document.getElementById(`liaison-start-${firstLiaisonErrorId}`);
+             const endEl = document.getElementById(`liaison-end-${firstLiaisonErrorId}`);
+             if (liaisonCounterErrors[firstLiaisonErrorId]?.includes("poste") && posteEl) posteEl.focus();
+             else if (startEl) startEl.focus();
+             else if (endEl) endEl.focus();
             return;
          }
          // Add similar logic for stock errors if needed
@@ -676,7 +697,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
-                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste). {/* Updated error message */}
+                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste, Total ≤ 24h). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -728,8 +749,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         onChange={(e) =>
                                         updateVibratorCounter(counter.id, "start", e.target.value)
                                         }
-                                        aria-invalid={!!vibratorCounterErrors[counter.id]}
-                                        aria-describedby={vibratorCounterErrors[counter.id] ? `error-vibrator-${counter.id}` : undefined}
+                                        aria-invalid={!!vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste")}
+                                        aria-describedby={vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") ? `error-vibrator-${counter.id}` : undefined}
                                     />
                                      {vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p>}
                                     </TableCell>
@@ -744,8 +765,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         onChange={(e) =>
                                         updateVibratorCounter(counter.id, "end", e.target.value)
                                         }
-                                         aria-invalid={!!vibratorCounterErrors[counter.id]}
-                                         aria-describedby={vibratorCounterErrors[counter.id] ? `error-vibrator-${counter.id}` : undefined}
+                                         aria-invalid={!!vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste")}
+                                         aria-describedby={vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") ? `error-vibrator-${counter.id}-end` : undefined}
                                     />
                                     {/* Display error inline only if error exists and is NOT related to poste selection */}
                                     {vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") ? <p id={`error-vibrator-${counter.id}-end`} className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p> : null}
@@ -793,7 +814,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
                              <AlertDescription>
-                                Erreur(s) dans les compteurs liaison. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste). {/* Updated error message */}
+                                Erreur(s) dans les compteurs liaison. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste, Total ≤ 24h). {/* Updated error message */}
                             </AlertDescription>
                         </Alert>
                     )}
@@ -845,8 +866,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         onChange={(e) =>
                                         updateLiaisonCounter(counter.id, "start", e.target.value)
                                         }
-                                        aria-invalid={!!liaisonCounterErrors[counter.id]}
-                                        aria-describedby={liaisonCounterErrors[counter.id] ? `error-liaison-${counter.id}` : undefined}
+                                        aria-invalid={!!liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste")}
+                                        aria-describedby={liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") ? `error-liaison-${counter.id}` : undefined}
                                     />
                                     {liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p>}
                                     </TableCell>
@@ -861,8 +882,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         onChange={(e) =>
                                         updateLiaisonCounter(counter.id, "end", e.target.value)
                                         }
-                                        aria-invalid={!!liaisonCounterErrors[counter.id]}
-                                        aria-describedby={liaisonCounterErrors[counter.id] ? `error-liaison-${counter.id}` : undefined}
+                                        aria-invalid={!!liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste")}
+                                        aria-describedby={liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") ? `error-liaison-${counter.id}-end` : undefined}
                                     />
                                      {/* Display error inline only if error exists and is NOT related to poste selection */}
                                      {liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") ? <p id={`error-liaison-${counter.id}-end`} className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p> : null }
@@ -961,7 +982,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                                 id={`${entry.id}-${park}`}
                                                 checked={entry.park === park}
                                                 disabled={!entry.poste} // Disable if no poste selected
-                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : '', park)}
+                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : false, park)} // Pass false to clear
                                                 />
                                                 <Label htmlFor={`${entry.id}-${park}`} className={`font-normal text-sm ${!entry.poste ? 'text-muted-foreground' : ''}`}>{park}</Label>
                                             </div>
@@ -977,10 +998,10 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                                     <Checkbox
                                                     id={`${entry.id}-${type}`}
                                                     checked={entry.type === type}
-                                                    disabled={!entry.poste || !entry.park} // Disable if no poste or park selected
-                                                    onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : '', type)}
+                                                    disabled={!entry.poste || !entry.park || !!entry.startTime} // Disable if no poste/park or if startTime is checked
+                                                    onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : false, type)} // Pass false to clear
                                                     />
-                                                    <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                                                    <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park || !!entry.startTime ? 'text-muted-foreground' : ''}`}>{type}</Label>
                                                 </div>
                                                 ))}
                                                 {/* HEURE DEBUT STOCK */}
@@ -989,10 +1010,10 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                                         id={`${entry.id}-startTime`}
                                                         // Check if startTime has a value to determine checked state
                                                         checked={!!entry.startTime}
-                                                        disabled={!entry.poste || !!entry.park} // Disable if no poste or if park is selected
-                                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'startTime', checked ? (entry.startTime || '00:00') : '', undefined)} // Set to '00:00' if checked, clear otherwise
+                                                        disabled={!entry.poste || !!entry.park || !!entry.type} // Disable if no poste or if park/type is selected
+                                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'startTime', checked ? (entry.startTime || '00:00') : false, undefined)} // Pass false to clear
                                                     />
-                                                    <Label htmlFor={`${entry.id}-startTime`} className={`font-normal text-sm ${!entry.poste || !!entry.park ? 'text-muted-foreground' : ''}`}>{STOCK_TIME_LABEL}</Label>
+                                                    <Label htmlFor={`${entry.id}-startTime`} className={`font-normal text-sm ${!entry.poste || !!entry.park || !!entry.type ? 'text-muted-foreground' : ''}`}>{STOCK_TIME_LABEL}</Label>
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -1017,7 +1038,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                                     type="time"
                                                     className="w-full h-8 text-sm mt-1" // Align with checkboxes
                                                     value={entry.startTime}
-                                                    disabled={!entry.poste || !!entry.park} // Disable if no poste or park selected
+                                                    disabled={!entry.poste || !!entry.park || !!entry.type} // Disable if no poste or park/type selected
                                                     onChange={(e) => updateStockEntry(entry.id, "startTime", e.target.value)}
                                                 />
                                             )}
@@ -1063,4 +1084,3 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
     </Card>
   );
 }
-```

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
@@ -1042,4 +1041,3 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
     </Card>
   );
 }
-```

@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"; // Import Select components
 
 interface DailyReportProps {
   selectedDate: Date; // Changed prop name and kept type as Date
@@ -21,9 +27,22 @@ interface DailyReportProps {
 
 interface ModuleStop {
   id: string; // Add unique id for key prop
+  poste: Poste | ''; // Added Poste selection
   duration: string;
   nature: string;
 }
+
+// Keep Poste constants for potential context or future use
+type Poste = "1er" | "2ème" | "3ème";
+
+// Updated Poste times and order
+const POSTE_TIMES: Record<Poste, string> = {
+  "3ème": "22:30 - 06:30",
+  "1er": "06:30 - 14:30",
+  "2ème": "14:30 - 22:30",
+};
+const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
+
 
 // Helper function to parse duration strings into minutes
 function parseDurationToMinutes(duration: string): number {
@@ -80,13 +99,14 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
   const [module1Stops, setModule1Stops] = useState<ModuleStop[]>([
     {
       id: crypto.randomUUID(),
+      poste: "1er", // Added poste
       duration: "1·20",
       nature: "Marque produit d'agissant steril",
     },
-    { id: crypto.randomUUID(), duration: "20", nature: "" },
+    { id: crypto.randomUUID(), poste: "2ème", duration: "20", nature: "" }, // Added poste
   ]);
   const [module2Stops, setModule2Stops] = useState<ModuleStop[]>([
-    { id: crypto.randomUUID(), duration: "40", nature: "Lancement Vol. G3" },
+    { id: crypto.randomUUID(), poste: "3ème", duration: "40", nature: "Lancement Vol. G3" }, // Added poste
   ]);
 
   const [module1TotalDowntime, setModule1TotalDowntime] = useState(0);
@@ -122,7 +142,7 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
 
 
   const addStop = (module: number) => {
-    const newStop: ModuleStop = { id: crypto.randomUUID(), duration: "", nature: "" }; // Removed hm, ha
+    const newStop: ModuleStop = { id: crypto.randomUUID(), poste: '', duration: "", nature: "" }; // Added poste
     if (module === 1) {
       setModule1Stops([...module1Stops, newStop]);
     } else {
@@ -138,11 +158,15 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
     }
   };
 
-  // Updated updateStop to exclude hm and ha
-  const updateStop = (module: number, id: string, field: keyof Omit<ModuleStop, 'id'>, value: string) => {
+  // Updated updateStop to include poste
+  const updateStop = (module: number, id: string, field: keyof Omit<ModuleStop, 'id'>, value: string | Poste) => {
      const updater = (stops: ModuleStop[]) => {
         return stops.map(stop => {
             if (stop.id === id) {
+                // Type assertion for Poste if field is 'poste'
+                if (field === 'poste') {
+                    return { ...stop, [field]: value as Poste };
+                }
                 return { ...stop, [field]: value };
             }
             return stop;
@@ -181,6 +205,9 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
+                  <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]"> {/* Added width for Poste */}
+                    Poste
+                  </TableHead>
                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[120px]">
                     Durée (ex: 1h 30)
                   </TableHead>
@@ -193,6 +220,23 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
               <TableBody>
                 {module1Stops.map((stop) => (
                   <TableRow key={stop.id} className="hover:bg-muted/50">
+                     <TableCell className="p-2"> {/* Cell for Poste Select */}
+                        <Select
+                            value={stop.poste}
+                            onValueChange={(value: Poste) => updateStop(1, stop.id, "poste", value)}
+                            >
+                            <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Sélectionner" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {POSTE_ORDER.map(p => (
+                                    <SelectItem key={p} value={p}>
+                                        {p} Poste ({POSTE_TIMES[p]})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </TableCell>
                     <TableCell className="p-2">
                       <Input
                         type="text"
@@ -229,7 +273,7 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
                 ))}
                  {module1Stops.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4"> {/* Adjusted colSpan to 3 */}
+                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4"> {/* Adjusted colSpan to 4 */}
                             Aucun arrêt ajouté pour le Module 1.
                         </TableCell>
                     </TableRow>
@@ -255,6 +299,9 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
              <Table>
                <TableHeader className="bg-muted/50">
                 <TableRow>
+                   <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]"> {/* Added width for Poste */}
+                    Poste
+                  </TableHead>
                    <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[120px]">
                     Durée (ex: 1h 30)
                   </TableHead>
@@ -267,6 +314,23 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
               <TableBody>
                 {module2Stops.map((stop) => (
                   <TableRow key={stop.id} className="hover:bg-muted/50">
+                      <TableCell className="p-2"> {/* Cell for Poste Select */}
+                        <Select
+                            value={stop.poste}
+                            onValueChange={(value: Poste) => updateStop(2, stop.id, "poste", value)}
+                            >
+                            <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Sélectionner" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {POSTE_ORDER.map(p => (
+                                    <SelectItem key={p} value={p}>
+                                        {p} Poste ({POSTE_TIMES[p]})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </TableCell>
                     <TableCell className="p-2">
                       <Input
                         type="text"
@@ -303,7 +367,7 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
                 ))}
                 {module2Stops.length === 0 && (
                     <TableRow>
-                         <TableCell colSpan={3} className="text-center text-muted-foreground p-4"> {/* Adjusted colSpan to 3 */}
+                         <TableCell colSpan={4} className="text-center text-muted-foreground p-4"> {/* Adjusted colSpan to 4 */}
                             Aucun arrêt ajouté pour le Module 2.
                         </TableCell>
                     </TableRow>
@@ -344,4 +408,3 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
     </Card>
   );
 }
-```

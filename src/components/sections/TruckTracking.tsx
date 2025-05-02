@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -451,4 +450,3 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
     </Card>
   );
 }
-```
