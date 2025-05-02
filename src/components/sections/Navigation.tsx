@@ -1,23 +1,23 @@
 
 "use client";
+
+interface NavItem {
+    id: string;
+    label: string;
+}
+
 interface NavigationProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  allowedSections: NavItem[]; // Receive allowed sections dynamically
 }
 
-export function Navigation({ activeTab, setActiveTab }: NavigationProps) {
-  // Removed 'another-page' from navItems
-  const navItems = [
-    { id: "daily-report", label: "Activité TSUD", icon: "fas fa-file-alt" },
-    { id: "activity-report", label: "Activité TNR", icon: "fas fa-chart-line" },
-    { id: "r0-report", label: "Rapport R0", icon: "fas fa-file" }, // Changed ID
-    { id: "truck-tracking", label: "Pointage Camions", icon: "fas fa-truck" },
-   ];
+export function Navigation({ activeTab, setActiveTab, allowedSections }: NavigationProps) {
 
   return (
     <nav className="border-b overflow-x-auto whitespace-nowrap mb-6">
       <div className="flex space-x-1">
-        {navItems.map((item) => (
+        {allowedSections.map((item) => ( // Map over allowedSections
           <button
             key={item.id}
             role="tab"
@@ -34,6 +34,10 @@ export function Navigation({ activeTab, setActiveTab }: NavigationProps) {
             {item.label}
           </button>
         ))}
+        {/* Optional: Add a message if no sections are allowed */}
+         {allowedSections.length === 0 && (
+            <div className="px-4 py-2 text-sm text-muted-foreground">Aucune section disponible.</div>
+         )}
       </div>
     </nav>
   );

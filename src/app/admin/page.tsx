@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from 'react';
-import { useAuth } from '@/hooks/useAuth.tsx';
+import { useAuth } from '@/hooks/useAuth'; // Corrected extension
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added CardDescription
 import { Button, buttonVariants } from '@/components/ui/button'; // Import buttonVariants
@@ -26,8 +26,9 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { ShieldCheck, ShieldOff, UserCog, Trash2, Ban, CheckCircle, Plus } from 'lucide-react'; // Icons
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'; // Dropdown for actions
+import { ShieldCheck, ShieldOff, UserCog, Trash2, Ban, CheckCircle, Plus, KeyRound } from 'lucide-react'; // Icons
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'; // Dropdown for actions
+import { UserPermissionsDialog } from '@/components/admin/user-permissions-dialog'; // Import the new dialog component
 
 
 // Define a type for the user data we expect from the action
@@ -38,6 +39,14 @@ interface DisplayUser {
   lastSignInTime: string;
   disabled: boolean;
   isAdmin: boolean;
+  allowedSections: string[]; // Add allowedSections
+}
+
+// Define type for the user being edited in the permissions dialog
+interface UserBeingEdited {
+    uid: string;
+    email: string | undefined;
+    allowedSections: string[];
 }
 
 export default function AdminPage() {
@@ -47,6 +56,10 @@ export default function AdminPage() {
   const [users, setUsers] = useState<DisplayUser[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  // State for managing the permissions dialog
+  const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
+  const [userToEditPermissions, setUserToEditPermissions] = useState<UserBeingEdited | null>(null);
+
 
   // Redirect non-admins or unauthenticated users
   useEffect(() => {
@@ -56,7 +69,7 @@ export default function AdminPage() {
   }, [currentUser, authLoading, router]);
 
   // Function to fetch users
-  const fetchUsers = async () => {
+  const fetchUsers = React.useCallback(async () => { // Wrap in useCallback
       setListLoading(true);
       const result = await listUsersAction();
       if (result.success && result.users) {
@@ -70,7 +83,8 @@ export default function AdminPage() {
         console.error("Failed to fetch users:", result.message);
       }
       setListLoading(false);
-  };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]); // Add toast as dependency
 
 
   // Fetch users when the component mounts and user is confirmed as admin
@@ -80,7 +94,7 @@ export default function AdminPage() {
         fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, authLoading]); // Removed toast from dependencies
+  }, [currentUser, authLoading, fetchUsers]); // Include fetchUsers in dependency array
 
 
   // --- Action Handlers ---
@@ -127,6 +141,20 @@ export default function AdminPage() {
      });
   };
 
+   // Handler to open the permissions dialog
+    const openPermissionsDialog = (user: DisplayUser) => {
+        setUserToEditPermissions({
+            uid: user.uid,
+            email: user.email,
+            allowedSections: user.allowedSections,
+        });
+        setIsPermissionsDialogOpen(true);
+    };
+
+    // Handler called when permissions are updated in the dialog
+    const handlePermissionsUpdate = () => {
+        fetchUsers(); // Re-fetch users to reflect changes
+    };
 
   // --- Rendering Logic ---
 
@@ -147,7 +175,7 @@ export default function AdminPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Gestion des Utilisateurs</CardTitle>
-                <CardDescription>Gérer les utilisateurs, leurs rôles et leur statut.</CardDescription>
+                <CardDescription>Gérer les utilisateurs, leurs rôles, leur statut et leurs permissions.</CardDescription>
             </CardHeader>
             <CardContent>
                 {listLoading ? (
@@ -164,6 +192,7 @@ export default function AdminPage() {
                                     <TableHead>User</TableHead>
                                     <TableHead>Rôle</TableHead>
                                     <TableHead>Statut</TableHead>
+                                    <TableHead>Permissions</TableHead>{/* Permissions Column */}
                                     <TableHead>UID</TableHead>
                                     <TableHead>Créé le</TableHead>
                                     <TableHead>Dernière connexion</TableHead>
@@ -190,6 +219,16 @@ export default function AdminPage() {
                                                 <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="mr-1 h-3 w-3" />Activé</Badge>
                                             )}
                                         </TableCell>
+                                        <TableCell> {/* Permissions Cell */}
+                                            {/* Show number of allowed sections or 'All' for admin */}
+                                             {usr.isAdmin || (process.env.NEXT_PUBLIC_ADMIN_UID && usr.uid === process.env.NEXT_PUBLIC_ADMIN_UID) ? (
+                                                 <Badge variant="outline">Toutes</Badge>
+                                            ) : (
+                                                 <Badge variant="outline" className="cursor-pointer hover:bg-muted" onClick={() => openPermissionsDialog(usr)}>
+                                                    {usr.allowedSections.length} section(s)
+                                                </Badge>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-xs text-muted-foreground">{usr.uid}</TableCell>
                                         <TableCell>{new Date(usr.creationTime).toLocaleDateString()}</TableCell>
                                         <TableCell>{usr.lastSignInTime ? new Date(usr.lastSignInTime).toLocaleDateString() : 'Jamais'}</TableCell>
@@ -206,6 +245,14 @@ export default function AdminPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
+                                                        {/* --- Manage Permissions --- */}
+                                                         <DropdownMenuItem onSelect={() => openPermissionsDialog(usr)} disabled={isPending}>
+                                                            <KeyRound className="mr-2 h-4 w-4" /> Gérer Permissions
+                                                         </DropdownMenuItem>
+
+                                                         <DropdownMenuSeparator />
+
+
                                                         {/* --- Role Management --- */}
                                                          {usr.isAdmin ? (
                                                             <AlertDialog>
@@ -340,7 +387,7 @@ export default function AdminPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={8} className="text-center text-muted-foreground"> {/* Adjusted colSpan */}
                                             Aucun utilisateur trouvé.
                                         </TableCell>
                                     </TableRow>
@@ -351,8 +398,18 @@ export default function AdminPage() {
                 )}
             </CardContent>
         </Card>
+
+        {/* Permissions Dialog */}
+        {userToEditPermissions && (
+             <UserPermissionsDialog
+                open={isPermissionsDialogOpen}
+                onOpenChange={setIsPermissionsDialogOpen}
+                userId={userToEditPermissions.uid}
+                userEmail={userToEditPermissions.email}
+                currentAllowedSections={userToEditPermissions.allowedSections}
+                onPermissionsUpdate={handlePermissionsUpdate}
+             />
+        )}
     </div>
   );
 }
-
-

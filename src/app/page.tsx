@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react"; // Added useEffect back for client-side checks
+import React, { useState, useEffect } from "react"; // Added React import for clarity, though often implicit
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Bell, Calendar as CalendarIcon } from "lucide-react"; // Added CalendarIcon
@@ -24,7 +24,7 @@ import {
 } from "@/components/sections"; // Adjusted import path
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth.tsx"; // Import useAuth hook with .tsx extension
+import { useAuth } from "@/hooks/useAuth.tsx"; // Import useAuth hook
 import { useRouter } from "next/navigation"; // Import useRouter
 
 const userName = "JD"; // Replace with actual user data if available
@@ -40,14 +40,31 @@ const POSTE_TIMES: Record<Poste, string> = {
 };
 const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
 
+// Define all possible sections
+const ALL_SECTIONS_CONFIG = [
+    { id: "daily-report", label: "Activité TSUD", component: DailyReport },
+    { id: "activity-report", label: "Activité TNR", component: ActivityReport },
+    { id: "r0-report", label: "Rapport R0", component: R0Report },
+    { id: "truck-tracking", label: "Pointage Camions", component: TruckTracking },
+];
+
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("daily-report");
-  // Renamed currentDate to selectedDate and initialized with today's date
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Initialize with new Date()
   const { user, loading, logout } = useAuth(); // Use the auth hook
   const router = useRouter(); // Initialize router
   const [isClient, setIsClient] = useState(false); // State to track client-side mount
+
+  // Determine allowed sections and set the initial active tab
+  const allowedSections = React.useMemo(() => {
+    // Default to no sections if user is null/loading or has no allowedSections
+    if (!user?.allowedSections || loading) return [];
+    return ALL_SECTIONS_CONFIG.filter(section => user.allowedSections!.includes(section.id));
+  }, [user?.allowedSections, loading]); // Add loading dependency
+
+  const [activeTab, setActiveTab] = useState(() => allowedSections[0]?.id || ""); // Default to first allowed tab or empty string
+   // Renamed currentDate to selectedDate and initialized with today's date
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Initialize with new Date()
+
 
    // Ensure client-side execution for redirection
    useEffect(() => {
@@ -62,6 +79,20 @@ export default function Home() {
        router.push('/login');
      }
    }, [isClient, loading, user, router]);
+
+    // Update active tab if the current one becomes disallowed or if none is set initially
+    useEffect(() => {
+      // Run this effect only when allowedSections are determined (i.e., not loading)
+      if (!loading) {
+        if (allowedSections.length > 0 && !allowedSections.find(s => s.id === activeTab)) {
+           setActiveTab(allowedSections[0].id); // Set to first allowed if current is invalid
+        } else if (allowedSections.length > 0 && !activeTab) {
+            setActiveTab(allowedSections[0].id); // Set initial if empty
+        } else if (allowedSections.length === 0) {
+            setActiveTab(""); // No sections allowed
+        }
+      }
+    }, [allowedSections, activeTab, loading]); // Add loading dependency
 
 
   // Helper function to get formatted date string, handles undefined case
@@ -188,26 +219,37 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Navigation Tabs */}
-        <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Navigation Tabs - Only show allowed sections */}
+        <Navigation
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            allowedSections={allowedSections.map(s => ({ id: s.id, label: s.label }))} // Pass only id and label
+        />
 
         {/* Tab Content */}
         <main id="tab-content" className="mt-6">
            {/* Render content only when selectedDate is available */}
            {selectedDate ? (
                <>
-                  {activeTab === "daily-report" && (
-                    <DailyReport selectedDate={selectedDate} /> // Pass Date object
-                  )}
-                  {activeTab === "activity-report" && (
-                    // Pass formatted date string or the Date object depending on component needs
-                    <ActivityReport selectedDate={selectedDate} previousDayThirdShiftEnd={previousDayThirdShiftEnd}/> // Pass Date object, add previousDay prop
-                  )}
-                   {activeTab === "r0-report" && (
-                    <R0Report selectedDate={selectedDate} previousDayThirdShiftEnd={previousDayThirdShiftEnd}/> // Pass Date object, add previousDay prop
-                  )}
-                  {activeTab === "truck-tracking" && (
-                    <TruckTracking selectedDate={selectedDate} /> // Pass Date object
+                  {allowedSections.map(section => {
+                     if (activeTab !== section.id) return null; // Only render the active tab's component
+
+                     const Component = section.component;
+                     const props: any = { selectedDate }; // Base props
+
+                      // Add previousDayThirdShiftEnd only for specific components
+                     if (section.id === 'activity-report' || section.id === 'r0-report') {
+                          props.previousDayThirdShiftEnd = previousDayThirdShiftEnd;
+                     }
+
+                     return <Component key={section.id} {...props} />;
+                  })}
+
+                  {/* Show message if no sections are allowed or none selected */}
+                  {allowedSections.length === 0 && (
+                      <div className="flex justify-center items-center h-64">
+                         <p className="text-muted-foreground text-lg">Vous n'avez accès à aucune section.</p>
+                      </div>
                   )}
                </>
            ) : ( // Show a message prompting date selection

@@ -15,6 +15,7 @@ interface ListUsersResult {
     lastSignInTime: string;
     disabled: boolean;
     isAdmin: boolean; // Added isAdmin flag
+    allowedSections: string[]; // Added allowed sections
   }[];
 }
 
@@ -32,6 +33,12 @@ export async function listUsersAction(): Promise<ListUsersResult> {
         // Check for the admin custom claim
         const isAdmin = !!userRecord.customClaims?.admin; // Check if customClaims exist and admin is true
 
+        // Get allowed sections claim, default to empty array if missing or invalid
+        const allowedSections = Array.isArray(userRecord.customClaims?.allowedSections)
+                                  ? userRecord.customClaims?.allowedSections as string[]
+                                  : [];
+
+
         return {
             uid: userRecord.uid,
             email: userRecord.email,
@@ -39,6 +46,7 @@ export async function listUsersAction(): Promise<ListUsersResult> {
             lastSignInTime: userRecord.metadata.lastSignInTime,
             disabled: userRecord.disabled,
             isAdmin: isAdmin,
+            allowedSections: allowedSections, // Include allowed sections
         };
     });
 
