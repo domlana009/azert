@@ -24,7 +24,7 @@ import {
 } from "@/components/sections"; // Adjusted import path
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth"; // Import useAuth hook
+import { useAuth } from "@/hooks/useAuth.tsx"; // Import useAuth hook with .tsx extension
 import { useRouter } from "next/navigation"; // Import useRouter
 
 const userName = "JD"; // Replace with actual user data if available
@@ -80,7 +80,7 @@ export default function Home() {
     return <div>Chargement...</div>; // Show loading state
   }
 
-  if (!user) {
+  if (!user && typeof window !== 'undefined') { // Add check for window to prevent server-side redirect errors
      router.push('/login'); // Redirect if not logged in
      return null; // Return null to prevent rendering the rest of the page during redirect
   }
