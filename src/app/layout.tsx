@@ -12,7 +12,7 @@ const inter = Inter({
 
 
 export const metadata: Metadata = {
-  title: 'ReportZen', // Updated App Name
+  title: 'R0', // Updated App Name
   description: 'Application de rapport quotidien OCP', // Updated description
 };
 

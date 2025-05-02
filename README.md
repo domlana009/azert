@@ -1,4 +1,4 @@
-# ReportZen
+# R0
 
 This is a Next.js application for daily job reporting using Firebase for authentication.
 
@@ -7,7 +7,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
 1.  **Clone the repository:**
     ```bash
     git clone <repository_url>
-    cd ReportZen
+    cd R0
     ```
 
 2.  **Install dependencies:**
@@ -62,7 +62,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=YOUR_MESSAGING_SENDER_ID
         NEXT_PUBLIC_FIREBASE_APP_ID=YOUR_APP_ID
         NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=YOUR_MEASUREMENT_ID # Optional
-        NEXT_PUBLIC_FIREBASE_DYNAMIC_LINKS_API_KEY=YOUR_DYNAMIC_LINKS_API_KEY # Add this if needed
+        NEXT_PUBLIC_FIREBASE_DYNAMIC_LINKS_API_KEY=AIzaSyAbjvD-BEdzhaZzIw2AYnMYNQL8egjn_Xw # Add this if needed
 
         # For Genkit / Google AI (Optional)
         GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_AI_API_KEY
@@ -117,7 +117,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
 *   Forms: Input and display for daily reports, activity reports, R0 reports, and truck tracking.
 *   Dynamic Data Tables: Interactive tables for activity and truck tracking.
 *   Authentication: User login/logout using Firebase Auth.
-*   Admin Panel: Basic admin panel (accessible via `/admin`) allowing admins to create new users.
+*   Admin Panel: Basic admin panel (accessible via `/admin`) allowing admins to create new users and manage permissions.
 
 ## Technologies Used
 
@@ -128,7 +128,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
 *   Shadcn/ui
 *   Lucide React (Icons)
 *   Firebase Authentication (Client SDK)
-*   Firebase Admin SDK (Server-side for user creation)
+*   Firebase Admin SDK (Server-side for user creation/management)
 *   Genkit (for potential GenAI features)
 *   date-fns
 
@@ -136,7 +136,8 @@ This is a Next.js application for daily job reporting using Firebase for authent
 
 *   **`Firebase: Error (auth/invalid-api-key)`:** Your `NEXT_PUBLIC_FIREBASE_API_KEY` in `.env` is likely incorrect or missing. Verify it against your Firebase project settings.
 *   **`Firebase: Error (auth/invalid-credential)`:** The email or password used for login is incorrect, OR the user does not exist in Firebase Authentication. Ensure you created the user manually first (Step 6).
-*   **`Firebase Admin SDK could not be initialized` (Server log):** Your server-side Admin SDK credentials are not configured correctly. Check Step 4: ensure either `FIREBASE_SERVICE_ACCOUNT_KEY` env var is set (with the full JSON content) OR `serviceAccountKey.json` is present in the project root and readable by the server process.
+*   **`Firebase Admin SDK could not be initialized` (Server log):** Your server-side Admin SDK credentials are not configured correctly. Check Step 4: ensure either `FIREBASE_SERVICE_ACCOUNT_KEY` env var is set (with the full JSON content) OR `serviceAccountKey.json` is present in the project root and readable by the server process. Check server logs for more detailed errors from `src/lib/firebase/admin.ts`.
 *   **`Cannot find module 'serviceAccountKey.json'` (Server log):** If using the local file method, the server cannot find the file. Ensure it's named correctly and placed in the project root.
 *   **Hydration Errors:** Often caused by rendering differences between server and client. Check for browser-specific APIs (`window`, `localStorage`) used outside `useEffect` or conditional rendering based on non-deterministic values (`Math.random()`, `new Date()`) before hydration.
 *   **404 Errors:** Double-check your page routes and component imports. Ensure files exist and are correctly named.
+

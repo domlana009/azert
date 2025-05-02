@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -72,12 +73,12 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Connexion</CardTitle>
-          <CardDescription className="text-center">Connectez-vous à votre compte ReportZen</CardDescription>
+          <CardDescription className="text-center">Connectez-vous à votre compte R0</CardDescription> {/* Updated description */}
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">User</Label> {/* Changed label from User to Email */}
+              <Label htmlFor="email">User</Label>
               <Input
                 id="email"
                 type="email" // Keep type as email for Firebase Auth compatibility
@@ -111,3 +112,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

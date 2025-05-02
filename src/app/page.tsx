@@ -162,7 +162,7 @@ export default function Home() {
         <header className="mb-8 border-b pb-4">
           <div className="flex justify-between items-center flex-wrap gap-4"> {/* Added flex-wrap and gap */}
             <div className="flex-shrink-0">
-              <h1 className="text-2xl font-bold">ReportZen</h1>
+              <h1 className="text-2xl font-bold">R0</h1> {/* Updated Title */}
               <p className="text-muted-foreground">Application de rapport quotidien</p>
             </div>
 
