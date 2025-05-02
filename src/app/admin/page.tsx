@@ -27,18 +27,18 @@ export default function AdminPage() {
   // Render admin content if user is admin
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Admin Dashboard</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p>Welcome, Admin!</p>
-          <Link href="/admin/create-user" passHref>
-            <Button>Create New User</Button>
-          </Link>
-          {/* Add more admin functionalities here */}
-        </CardContent>
-      </Card>
+        <h1 className="text-3xl font-bold mb-6">Welcome, Admin!</h1>
+            <div className="flex justify-start">
+            <Link href="/admin/create-user" passHref>
+                <Button>Create New User</Button>
+            </Link>
+        </div>
+      
+
+
+        
+        {/* Add more admin functionalities here */}
+    
     </div>
   );
 }
