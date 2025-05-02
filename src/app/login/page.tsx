@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -47,9 +46,9 @@ export default function LoginPage() {
       let errorMessage = "Échec de la connexion. Veuillez vérifier vos identifiants.";
       // Provide more specific messages based on Firebase error codes
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        errorMessage = "Utilisateur ou mot de passe invalide."; // Updated message
+        errorMessage = "Identifiants invalides. Vérifiez votre email et mot de passe, ou assurez-vous que l'utilisateur existe."; // Updated message for invalid credential
       } else if (err.code === 'auth/invalid-email') {
-        errorMessage = "Format d'utilisateur invalide (doit être un email)."; // Updated message
+        errorMessage = "Format d'email invalide."; // Changed label from User to Email in logic
       } else if (err.code === 'auth/invalid-api-key' || err.code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') {
          errorMessage = "Erreur de configuration : Clé API Firebase invalide.";
       } else if (err.code === 'auth/missing-password') {
@@ -76,7 +75,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">User</Label> {/* Changed label from Utilisateur to User */}
+              <Label htmlFor="email">Email</Label> {/* Changed label from Utilisateur to User */}
               <Input
                 id="email"
                 type="email" // Keep type as email for Firebase Auth compatibility

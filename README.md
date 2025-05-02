@@ -26,7 +26,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   Under "Your apps", click the Web icon (`</>`) to add a web app.
     *   Register your app and copy the `firebaseConfig` object.
     *   Enable Firebase Authentication (Email/Password sign-in method).
-    *   **Admin User:** Decide on the email for your initial admin user (e.g., `j.abbay@admin.com`). You will designate this user as admin *after* creating them via the application's admin panel.
+    *   **Admin User Email:** Decide on the email for your initial admin user (e.g., `j.abbay@admin.com`). **You must create this user manually in the Firebase Console before trying to log in.**
     *   **Service Account Key (for Admin Actions):**
         *   Go to Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file will download.
@@ -39,12 +39,18 @@ This is a Next.js application for daily job reporting using Firebase for authent
         cp .env.example .env
         ```
     *   Open the `.env` file.
-    *   Replace the placeholder values (`YOUR_...`) with your actual Firebase project configuration values from the `firebaseConfig` object you copied earlier (prefixed with `NEXT_PUBLIC_`).
+    *   Replace the placeholder values (`YOUR_...`) with your actual Firebase project configuration values from the `firebaseConfig` object you copied earlier (prefixed with `NEXT_PUBLIC_`). **Ensure `NEXT_PUBLIC_FIREBASE_API_KEY` is valid.**
     *   **Crucially, set `FIREBASE_SERVICE_ACCOUNT_KEY`** if using Option 1 above. If using Option 2 (local file), this variable can be left empty or removed, but the `serviceAccountKey.json` file **must** be present locally.
     *   If using Genkit with Google AI, add your `GOOGLE_GENAI_API_KEY`.
-    *   **(Optional but Recommended for simpler Admin setup):** If you prefer *not* to use Firebase Custom Claims for admin identification initially, you can uncomment and set `NEXT_PUBLIC_ADMIN_UID` to the UID of the admin user *after* you create them via the app. Get the UID from the Firebase Console (Authentication > Users). The `useAuth.tsx` hook currently prioritizes this environment variable method. If you use the custom claim method (checkbox in the create user form), adjust `useAuth.tsx` accordingly to check `decodedToken.admin` instead.
+    *   **(Optional but Recommended for simpler Admin setup):** If you prefer *not* to use Firebase Custom Claims for admin identification initially, you can uncomment and set `NEXT_PUBLIC_ADMIN_UID` to the UID of the admin user *after* you create them via the Firebase Console. Get the UID from the Firebase Console (Authentication > Users). The `useAuth.tsx` hook currently prioritizes this environment variable method. If you use the custom claim method (checkbox in the create user form), adjust `useAuth.tsx` accordingly to check `decodedToken.admin` instead.
 
-5.  **Run the development server:**
+5.  **Create the Initial Admin User in Firebase Console (Required):**
+    *   Go to your Firebase project > Authentication > Users.
+    *   Click "Add user".
+    *   Enter the email you decided on (e.g., `j.abbay@admin.com`) and a secure password (e.g., `123456` **for local testing only - use a strong password in production**).
+    *   Click "Add user".
+
+6.  **Run the development server:**
     ```bash
     npm run dev
     # or
@@ -53,20 +59,17 @@ This is a Next.js application for daily job reporting using Firebase for authent
     pnpm dev
     ```
 
-6.  Open [http://localhost:9002](http://localhost:9002) (or the specified port) with your browser to see the result.
+7.  Open [http://localhost:9002](http://localhost:9002) (or the specified port) with your browser to see the result.
 
-7.  **Create the Initial Admin User:**
-    *   The application currently doesn't have a user signup page. You need to create the *first* user (who will be admin) using the Firebase Console for now:
-        *   Go to your Firebase project > Authentication > Users > Add user.
-        *   Enter the email you decided on (e.g., `j.abbay@admin.com`) and a password.
-    *   **(If using `NEXT_PUBLIC_ADMIN_UID`):** Copy the UID of the user you just created and set it as the value for `NEXT_PUBLIC_ADMIN_UID` in your `.env` file. Restart your development server (`npm run dev`).
-    *   Log in to the ReportZen application with the admin credentials.
-    *   You should now see the "Admin Panel" button. Click it, then click "Create New User" to add other users.
+8.  **Log in as Admin:**
+    *   Log in to the ReportZen application with the admin credentials you created in the Firebase Console (e.g., `j.abbay@admin.com` / `123456`).
+    *   **(If using `NEXT_PUBLIC_ADMIN_UID`):** If you haven't already, copy the UID of the user you just created (from Firebase Console > Authentication > Users) and set it as the value for `NEXT_PUBLIC_ADMIN_UID` in your `.env` file. Restart your development server (`npm run dev`).
+    *   You should now see the "Admin Panel" button in the header if the admin role is correctly identified (either via `NEXT_PUBLIC_ADMIN_UID` or custom claims if you configured that). Click "Admin Panel", then "Create New User" to add other users via the application interface.
 
 ## Features
 
-*   Tabbed Navigation: Switch between Daily Report, Activity Report, and Truck Tracking sections.
-*   Daily Report Form: Input and display for daily reports.
+*   Tabbed Navigation: Switch between Daily Report, Activity Report, R0 Report, and Truck Tracking sections.
+*   Forms: Input and display for daily reports, activity reports, R0 reports, and truck tracking.
 *   Dynamic Data Tables: Interactive tables for activity and truck tracking.
 *   Authentication: User login/logout using Firebase Auth.
 *   Admin Panel: Basic admin panel (accessible via `/admin`) allowing admins to create new users.
@@ -82,3 +85,6 @@ This is a Next.js application for daily job reporting using Firebase for authent
 *   Firebase Authentication
 *   Firebase Admin SDK (for server-side actions like user creation)
 *   Genkit (for potential GenAI features)
+*   date-fns
+
+```
