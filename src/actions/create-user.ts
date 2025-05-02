@@ -71,8 +71,10 @@ export async function createUserAction(formData: FormData): Promise<CreateUserRe
     if (isAdmin) {
       await adminAuth.setCustomUserClaims(userRecord.uid, { admin: true });
       claimMessage = " Rôle admin défini.";
-       // Note: If using NEXT_PUBLIC_ADMIN_UID method in useAuth, this custom claim might not be checked.
-       // Ensure your useAuth logic aligns with how you define admins (claim vs env var).
+       // Note: If using NEXT_PUBLIC_ADMIN_UID method in useAuth.tsx (as currently configured),
+       // this custom claim might not be checked by default for identifying admins.
+       // Ensure your useAuth.tsx logic aligns with how you define admins (claim vs env var).
+       // The checkbox in create-user page is currently commented out to align with the primary NEXT_PUBLIC_ADMIN_UID method.
     }
 
 
