@@ -48,29 +48,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if auth object is available before subscribing
+    if (!auth) {
+      console.error("Firebase auth object is not available. Authentication cannot be initialized. Check Firebase config.");
+      setLoading(false); // Stop loading as auth state cannot be determined
+      return; // Exit useEffect early
+    }
+
     // Subscribe to Firebase auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // User is signed in
-        // TODO: Fetch additional user data (like role) from your backend/database if needed
-        // Example: const userRole = await fetchUserRole(firebaseUser.uid);
-
-        // Simulate fetching user role (replace with actual logic)
         // In a real app, you would fetch this from Firestore or your database
         const getUserRole = async (uid: string): Promise<'admin' | 'user'> => {
-          // Example: check if UID matches a known admin UID
-          // Replace with your actual role management logic
-          if (uid === process.env.NEXT_PUBLIC_ADMIN_UID) { // Example check
-            return 'admin';
-          }
-          return 'user'; // Default role
+            // Priority 1: Check Environment Variable for Admin UID
+            if (process.env.NEXT_PUBLIC_ADMIN_UID && uid === process.env.NEXT_PUBLIC_ADMIN_UID) {
+                return 'admin';
+            }
+
+            // Priority 2: Check Custom Claims (if env var not set or doesn't match)
+            // Note: Getting custom claims client-side requires an ID token refresh.
+            // Consider if this check is needed client-side or if role should be
+            // managed purely via the env var or fetched securely from a backend.
+            // For simplicity here, we'll rely primarily on the env var check.
+            // If you need claim-based roles, implement token refresh and claim checking:
+            // try {
+            //   const idTokenResult = await firebaseUser.getIdTokenResult(true); // Force refresh
+            //   if (idTokenResult.claims.admin === true) {
+            //     return 'admin';
+            //   }
+            // } catch (error) {
+            //   console.error("Error fetching custom claims:", error);
+            // }
+
+            // Default Role
+            return 'user';
         };
+
 
         const userRole = await getUserRole(firebaseUser.uid);
 
         const appUser: User = {
           ...firebaseUser,
-          // Use the fetched role
+          // Use the determined role
           role: userRole,
         };
         setUser(appUser);
@@ -87,6 +107,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Logout function
   const logout = async () => {
+    // Check if auth is available before trying to sign out
+     if (!auth) {
+       console.error("Cannot logout: Firebase auth is not initialized.");
+       return; // Prevent attempting sign out if auth is null
+     }
     setLoading(true); // Optionally set loading state during logout
     try {
       await signOut(auth);
@@ -120,3 +145,52 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+// Default admin credentials (example only - DO NOT USE IN PRODUCTION)
+export const defaultAdmin = {
+    email: "j.abbay@admin.com", // Example admin email
+    // NEVER store plain text passwords in code.
+    // This is only for demonstration if manually creating the user.
+    // password: "123456"
+};
+
+// Function to create the default admin user if they don't exist
+// THIS IS UNSAFE AND FOR LOCAL DEVELOPMENT/DEMO ONLY.
+// In production, manage users securely via Firebase Console or Admin SDK backend.
+// async function ensureDefaultAdminExists() {
+//   if (!auth) return; // Don't run if auth isn't initialized
+//   try {
+//     // Try to sign in to check if user exists - THIS IS NOT A RELIABLE CHECK
+//     // A better approach involves backend logic or Admin SDK functions if needed.
+//     // This client-side check is highly insecure and easily bypassed.
+//     // **AVOID this pattern in production.**
+//      await signInWithEmailAndPassword(auth, defaultAdmin.email, "some_temp_password_to_check");
+//      console.log(`Admin user ${defaultAdmin.email} likely exists.`);
+//      // Sign out immediately after check
+//      await signOut(auth);
+//   } catch (error: any) {
+//     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+//       console.log(`Admin user ${defaultAdmin.email} not found, attempting to create...`);
+//       try {
+//         // This requires Email/Password sign-in to be enabled in Firebase
+//         // AND potentially Sign up (new users) enabled.
+//         // *** SECURITY RISK: Client-side user creation like this is generally unsafe. ***
+//         // const userCredential = await createUserWithEmailAndPassword(auth, defaultAdmin.email, defaultAdmin.password);
+//         // console.log(`Default admin user ${userCredential.user.email} created successfully.`);
+//         // TODO: You would need backend logic (e.g., Cloud Function triggered on user creation)
+//         // to securely set the admin custom claim or update a role in Firestore.
+//         // Client-side cannot set custom claims.
+//       } catch (creationError) {
+//         console.error("Error creating default admin user:", creationError);
+//       }
+//     } else {
+//       // Other sign-in error
+//       console.error("Error checking for admin user:", error);
+//     }
+//   }
+// }
+
+// Uncomment and call this *carefully* during development setup if needed,
+// understanding the security implications.
+// ensureDefaultAdminExists();
+
