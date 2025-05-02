@@ -36,9 +36,11 @@ export default function LoginPage() {
       let errorMessage = "Échec de la connexion. Veuillez vérifier vos identifiants.";
       // Provide more specific messages based on Firebase error codes
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        errorMessage = "Adresse e-mail ou mot de passe invalide.";
+        errorMessage = "Utilisateur ou mot de passe invalide."; // Updated message
       } else if (err.code === 'auth/invalid-email') {
-        errorMessage = "Adresse e-mail invalide.";
+        errorMessage = "Format d'utilisateur invalide (doit être un email)."; // Updated message
+      } else if (err.code === 'auth/invalid-api-key') {
+         errorMessage = "Erreur de configuration : Clé API Firebase invalide.";
       }
       setError(errorMessage);
        toast({ // Show error toast
@@ -61,11 +63,11 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Utilisateur</Label> {/* Changed label from Email to Utilisateur */}
               <Input
                 id="email"
-                type="email"
-                placeholder="email@example.com"
+                type="email" // Keep type as email for Firebase Auth compatibility
+                placeholder="utilisateur@example.com" // Keep placeholder example format
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -95,3 +97,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
