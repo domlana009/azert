@@ -25,6 +25,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { Alert, AlertDescription } from "@/components/ui/alert"; // Import Alert for displaying errors
 import { cn } from "@/lib/utils"; // Import cn for conditional classes
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 // Helper function to parse duration strings into minutes (copied from DailyReport)
 function parseDurationToMinutes(duration: string): number {
@@ -154,7 +155,7 @@ interface StockEntry {
 const MAX_HOURS_PER_POSTE = 8; // Max hours for a standard shift
 
 export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }: ActivityReportProps) { // Updated prop name
-
+  const { toast } = useToast();
 
   // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
   const [stops, setStops] = useState<Stop[]>([
@@ -228,7 +229,6 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
     ): string | undefined => {
         const startVal = validateAndParseCounterValue(currentStartStr);
         const endVal = validateAndParseCounterValue(currentEndStr);
-        const errorSetter = type === 'vibrator' ? setVibratorCounterErrors : setLiaisonCounterErrors;
 
          // 0. Poste Validation (Must be selected if start or end has value)
          if ((currentStartStr || currentEndStr) && !currentPoste) {
@@ -243,20 +243,17 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         // Basic Validation
         if (startVal === null && currentStartStr !== '' && currentStartStr !== '.' && currentStartStr !== ',') return "Début invalide.";
         if (endVal === null && currentEndStr !== '' && currentEndStr !== '.' && currentEndStr !== ',') return "Fin invalide.";
-        if (startVal !== null && endVal !== null && endVal < startVal) return "Fin < Début.";
+        if (startVal === null || endVal === null) return undefined; // Skip further checks if incomplete but parsable so far
+
+        if (endVal < startVal) return "Fin < Début.";
 
         // Max Duration Check (Per Poste Limit - 8 hours)
-        if (startVal !== null && endVal !== null) {
-            const durationHours = endVal - startVal;
-             if (durationHours > MAX_HOURS_PER_POSTE) {
-                 return `Durée max (${MAX_HOURS_PER_POSTE}h) dépassée (${durationHours.toFixed(2)}h).`;
-             }
-        }
+        const durationHours = endVal - startVal;
+         if (durationHours > MAX_HOURS_PER_POSTE) {
+             return `Durée max (${MAX_HOURS_PER_POSTE}h) dépassée (${durationHours.toFixed(2)}h).`;
+         }
 
         // Sequential Validation (based on Poste order: 3ème -> 1er -> 2ème)
-        const currentIndex = counters.findIndex(c => c.id === counterId);
-        if (currentIndex === -1 || !currentPoste) return undefined; // Should not happen if poste validation passed
-
         // Find the counter for the previous logical poste
         let expectedPreviousFinStr: string | undefined | null = undefined;
         let previousPosteName: string = '';
@@ -266,11 +263,11 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
              previousPosteName = "3ème (veille)";
              if (expectedPreviousFinStr === undefined) expectedPreviousFinStr = null; // Treat undefined prop as skip
          } else if (currentPoste === '2ème') { // Current is 2ème, check against current day's 1er
-             const previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === '1er');
+             const previousCounter = counters.find(c => c.poste === '1er' && c.id !== counterId);
              expectedPreviousFinStr = previousCounter?.end;
              previousPosteName = "1er";
          } else if (currentPoste === '3ème') { // Current is 3ème, check against current day's 2ème
-             const previousCounter = counters.find((c, idx) => idx !== currentIndex && c.poste === '2ème');
+             const previousCounter = counters.find(c => c.poste === '2ème' && c.id !== counterId);
              expectedPreviousFinStr = previousCounter?.end;
              previousPosteName = "2ème";
          }
@@ -278,21 +275,24 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
 
         // Perform the check if an expected previous 'fin' value exists and is valid
         if (expectedPreviousFinStr !== undefined && expectedPreviousFinStr !== null && currentStartStr !== '') {
-            const expectedPreviousFin = parseFloat(expectedPreviousFinStr);
-            if (isNaN(expectedPreviousFin)) {
-                 // Skip check if reference is invalid (e.g., previous entry has error or is empty)
-                 // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid.`);
-            } else if (startVal !== null && startVal !== expectedPreviousFin) {
-                 return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFin}) du ${previousPosteName} Poste.`;
+             // Check if expectedPreviousFinStr is a valid number representation
+             const expectedPreviousFinParsed = validateAndParseCounterValue(expectedPreviousFinStr);
+
+            if (expectedPreviousFinParsed === null) {
+                 // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid or empty.`);
+                 // Decide if this should be an error or just skip the check
+                 // Option 1: Skip check (allows potentially incorrect start)
+                 // Option 2: Consider it an error (stricter, requires previous value to be valid)
+                 // Let's skip for now, assuming the user will fix the previous entry
+            } else if (startVal !== expectedPreviousFinParsed) {
+                 return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFinParsed}) du ${previousPosteName} Poste.`;
              }
         } else if (expectedPreviousFinStr === null && currentPoste === '1er') {
              // Previous day data explicitly not available - OK for 1er poste start
          } else if (expectedPreviousFinStr === undefined && currentPoste !== '1er') {
              // Previous counter in the sequence not found or its 'fin' is empty.
              // This might be okay if it's the first entry for that sequence (e.g., first 3ème or first 2ème).
-             // However, if other entries for the previous poste *do* exist, this is likely an error, but harder to detect perfectly without full sequence analysis.
-             // For now, we allow it, assuming user might fill out of order.
-             // A stricter validation could check if *any* previous poste counter exists and require its 'fin'.
+             // We allow it, assuming user might fill out of order.
          }
          // else: current 'start' is empty - skip sequence check.
 
@@ -313,12 +313,6 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                 vibratorValidationPassed = false;
                 return false; // Exclude from total calculation if error
             }
-            // Check if start or end has value but poste is missing (should be caught by validateCounterEntry now)
-            // if ((c.start || c.end) && !c.poste) {
-            //     newVibratorErrors[c.id] = "Veuillez sélectionner un poste.";
-            //     vibratorValidationPassed = false;
-            //     return false;
-            // }
             return true; // Valid entry for total calculation
         });
 
@@ -330,8 +324,10 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
 
         if (vibratorTotal > TOTAL_PERIOD_MINUTES) {
              setHasVibratorErrors(true); // Also set error if total exceeds 24h
-             // Optionally add a specific general error message for exceeding total
              console.warn("Total vibreur duration exceeds 24h period.");
+             // Add a general error message if needed
+             // newVibratorErrors['general'] = 'La durée totale des vibreurs dépasse 24h.';
+             // setVibratorCounterErrors(prev => ({ ...prev, ...newVibratorErrors }));
         }
 
 
@@ -346,11 +342,6 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                 liaisonValidationPassed = false;
                 return false;
             }
-            // if ((c.start || c.end) && !c.poste) { // Also check if poste is missing
-            //      newLiaisonErrors[c.id] = "Veuillez sélectionner un poste.";
-            //      liaisonValidationPassed = false;
-            //      return false;
-            //  }
             return true;
         });
 
@@ -363,6 +354,9 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         if (liaisonTotal > TOTAL_PERIOD_MINUTES) {
              setHasLiaisonErrors(true); // Set error if total exceeds 24h
              console.warn("Total liaison duration exceeds 24h period.");
+              // Add a general error message if needed
+             // newLiaisonErrors['general'] = 'La durée totale des liaisons dépasse 24h.';
+             // setLiaisonCounterErrors(prev => ({ ...prev, ...newLiaisonErrors }));
         }
 
          // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -528,40 +522,30 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
     // Explicitly check the general error flags which are updated by useEffect
      if (hasVibratorErrors || hasLiaisonErrors || hasStockErrors) {
         console.error("Validation failed: Invalid inputs detected in counters or stock.");
-        // Optionally, provide user feedback (e.g., using a toast)
-        // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les formulaires.", variant: "destructive" });
+        toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les formulaires.", variant: "destructive" });
 
-        // Focus the first input with an error (example)
-        const firstVibratorErrorId = Object.keys(vibratorCounterErrors).find(id => vibratorCounterErrors[id]);
-        if (firstVibratorErrorId) {
-            // Try focusing poste, then start, then end
-            const posteEl = document.getElementById(`vibrator-poste-trigger-${firstVibratorErrorId}`);
-            const startEl = document.getElementById(`vibrator-start-${firstVibratorErrorId}`);
-            const endEl = document.getElementById(`vibrator-end-${firstVibratorErrorId}`);
-            if (vibratorCounterErrors[firstVibratorErrorId]?.includes("poste") && posteEl) posteEl.focus();
-            else if (startEl) startEl.focus();
-            else if (endEl) endEl.focus();
+        // Focus the first input with an error
+        const firstErrorIdVibrator = Object.keys(vibratorCounterErrors).find(id => vibratorCounterErrors[id]);
+        if (firstErrorIdVibrator) {
+            const el = document.getElementById(`vibrator-poste-trigger-${firstErrorIdVibrator}`) ||
+                       document.getElementById(`vibrator-start-${firstErrorIdVibrator}`) ||
+                       document.getElementById(`vibrator-end-${firstErrorIdVibrator}`);
+            el?.focus();
             return;
         }
-        const firstLiaisonErrorId = Object.keys(liaisonCounterErrors).find(id => liaisonCounterErrors[id]);
-         if (firstLiaisonErrorId) {
-             const posteEl = document.getElementById(`liaison-poste-trigger-${firstLiaisonErrorId}`);
-             const startEl = document.getElementById(`liaison-start-${firstLiaisonErrorId}`);
-             const endEl = document.getElementById(`liaison-end-${firstLiaisonErrorId}`);
-             if (liaisonCounterErrors[firstLiaisonErrorId]?.includes("poste") && posteEl) posteEl.focus();
-             else if (startEl) startEl.focus();
-             else if (endEl) endEl.focus();
+        const firstErrorIdLiaison = Object.keys(liaisonCounterErrors).find(id => liaisonCounterErrors[id]);
+         if (firstErrorIdLiaison) {
+             const el = document.getElementById(`liaison-poste-trigger-${firstErrorIdLiaison}`) ||
+                        document.getElementById(`liaison-start-${firstErrorIdLiaison}`) ||
+                        document.getElementById(`liaison-end-${firstErrorIdLiaison}`);
+             el?.focus();
             return;
          }
-         // Add similar logic for stock errors if needed
          const firstStockErrorEntry = stockEntries.find(entry => (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste);
          if (firstStockErrorEntry) {
-             // Focus the poste select for the first erroneous stock entry
              document.getElementById(`stock-poste-trigger-${firstStockErrorEntry.id}`)?.focus();
              return;
          }
-
-
         return; // Stop submission
     }
 
@@ -571,12 +555,12 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
         vibratorCounters, // Submit validated counters
         liaisonCounters, // Submit validated counters
         stockEntries, // Submit validated stock entries
-        //stockStartTime, // Removed stockStartTime, handled within stockEntries now
         totalDowntime,
         operatingTime,
         totalVibratorMinutes, // Submit calculated totals
         totalLiaisonMinutes, // Submit calculated totals
     });
+    toast({ title: "Succès", description: "Rapport soumis avec succès." });
     // TODO: Replace console.log with actual API call or state management update
     // e.g., await submitActivityReport({ ... });
   };

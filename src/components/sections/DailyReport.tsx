@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +61,8 @@ function parseDurationToMinutes(duration: string): number {
    if (match) {
      hours = match[1] ? parseInt(match[1], 10) : 0;
      minutes = parseInt(match[2], 10);
+     // Validate parsed numbers
+     if (isNaN(hours) || isNaN(minutes)) return 0;
      return (hours * 60) + minutes;
    }
 
@@ -68,6 +71,7 @@ function parseDurationToMinutes(duration: string): number {
    match = cleaned.match(/^(\d{1,2})\s?[Hh]$/);
     if (match) {
       hours = parseInt(match[1], 10);
+      if (isNaN(hours)) return 0;
       return hours * 60;
     }
 
@@ -75,6 +79,7 @@ function parseDurationToMinutes(duration: string): number {
   match = cleaned.match(/^(\d+)$/);
   if (match) {
     minutes = parseInt(match[1], 10);
+    if (isNaN(minutes)) return 0;
     return minutes;
   }
 
@@ -85,7 +90,7 @@ function parseDurationToMinutes(duration: string): number {
 
 // Helper function to format minutes into HHh MMm string
 function formatMinutesToHoursMinutes(totalMinutes: number): string {
-    if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m"; // Return 0 if non-positive
+    if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m"; // Return 0 if non-positive or NaN
     const hours = Math.floor(totalMinutes / 60);
     const minutes = Math.round(totalMinutes % 60); // Round minutes
     return `${hours}h ${minutes}m`;
@@ -124,7 +129,15 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
 
    useEffect(() => {
     const calculateTotals = (stops: ModuleStop[]) => {
-      const totalDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
+      const totalDowntime = stops.reduce((acc, stop) => {
+          const minutes = parseDurationToMinutes(stop.duration);
+          // Check if parsing resulted in NaN and handle it (e.g., treat as 0 or log error)
+          if (isNaN(minutes)) {
+              console.warn(`Invalid duration format for stop ${stop.id}: "${stop.duration}"`);
+              return acc; // Skip invalid durations
+          }
+          return acc + minutes;
+      }, 0);
       // Calculate operating time based on a standard 24-hour period
       const operatingTime = TOTAL_PERIOD_MINUTES - totalDowntime;
       return { totalDowntime, operatingTime };
@@ -166,6 +179,10 @@ export function DailyReport({ selectedDate }: DailyReportProps) { // Updated pro
                 // Type assertion for Poste if field is 'poste'
                 if (field === 'poste') {
                     return { ...stop, [field]: value as Poste };
+                }
+                // Basic validation for duration (e.g., check if parseable) - can be enhanced
+                if (field === 'duration') {
+                   // Optionally add immediate feedback or validation styling here
                 }
                 return { ...stop, [field]: value };
             }

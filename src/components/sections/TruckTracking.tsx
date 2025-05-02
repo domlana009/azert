@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea"; // Import Textarea
+import { Plus, Trash2 } from "lucide-react"; // Import icons
 
 interface TruckTrackingProps {
   selectedDate: Date; // Changed prop name and kept type as Date
@@ -72,7 +74,7 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
       tSud: "",
       tNord: "",
       stock: "",
-      total: "", // Should this be calculated?
+      total: "", // Will be calculated
       hour: "",
       location: "",
     },
@@ -103,7 +105,7 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
         tSud: "",
         tNord: "",
         stock: "",
-        total: "",
+        total: "", // Will be calculated
         hour: "",
         location: "",
       },
@@ -112,25 +114,25 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
 
  const updateTruckData = (
     id: string,
-    field: keyof Omit<TruckData, 'id' | 'counts'> | 'counts', // Allow 'counts' specifically
+    field: keyof Omit<TruckData, 'id' | 'counts' | 'total'> | 'counts', // Exclude calculated total
     value: string,
     countIndex?: number // Only needed if field is 'counts'
   ) => {
     setTruckData(prevData =>
       prevData.map(truck => {
         if (truck.id === id) {
+           let updatedTruck = { ...truck };
           if (field === 'counts' && countIndex !== undefined) {
             const newCounts = [...truck.counts];
             newCounts[countIndex] = value;
-            return { ...truck, counts: newCounts };
+            updatedTruck = { ...updatedTruck, counts: newCounts };
           } else if (field !== 'counts') {
-             // Create a temporary mutable copy for type safety
-             let mutableTruck: Partial<TruckData> = { ...truck };
              // Assign value using the field name as key
-             (mutableTruck as any)[field] = value;
-             // Return the updated object
-             return mutableTruck as TruckData;
+             (updatedTruck as any)[field] = value;
           }
+           // Recalculate total after update
+           updatedTruck.total = calculateTotal(updatedTruck);
+           return updatedTruck;
         }
         return truck;
       })
@@ -142,18 +144,24 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
         setTruckData(truckData.filter(truck => truck.id !== id));
     };
 
-  // Example calculation for total (sum of counts, tSud, tNord, stock)
+  // Calculation for total (sum of counts, tSud, tNord, stock) - ensures valid numbers
     const calculateTotal = (truck: TruckData): string => {
-        const countsSum = truck.counts.reduce((acc, count) => acc + (parseInt(count, 10) || 0), 0);
-        const tSudNum = parseInt(truck.tSud, 10) || 0;
-        const tNordNum = parseInt(truck.tNord, 10) || 0;
-        const stockNum = parseInt(truck.stock, 10) || 0;
-        return (countsSum + tSudNum + tNordNum + stockNum).toString();
-    };
+        const countsSum = truck.counts.reduce((acc, count) => {
+            const num = parseInt(count, 10);
+            return acc + (isNaN(num) ? 0 : num); // Add 0 if count is not a valid number
+        }, 0);
+        const tSudNum = parseInt(truck.tSud, 10);
+        const tNordNum = parseInt(truck.tNord, 10);
+        const stockNum = parseInt(truck.stock, 10);
 
-    // Update total whenever relevant fields change
-    // This could be done within updateTruckData or using useEffect
-    // For simplicity, let's display the calculated total directly in the table
+        // Add 0 if parsing results in NaN
+        return (
+            countsSum +
+            (isNaN(tSudNum) ? 0 : tSudNum) +
+            (isNaN(tNordNum) ? 0 : tNordNum) +
+            (isNaN(stockNum) ? 0 : stockNum)
+        ).toString();
+    };
 
 
   return (
@@ -188,8 +196,8 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
           </div>
 
 
-        <div className="space-y-3"> {/* Replaced mb-6 with space-y-3 */}
-          <h3 className="font-medium text-gray-700 dark:text-gray-300">
+        <div className="space-y-3 p-4 border rounded-lg"> {/* Replaced mb-6 and added styling */}
+          <h3 className="font-semibold text-lg text-foreground">
             Informations Générales
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -239,8 +247,8 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
         </div>
 
          {/* Section: Explication des Arrêts */}
-         <div className="space-y-2">
-             <Label htmlFor="truck-arrets-explication" className="font-medium text-gray-700 dark:text-gray-300">Explication des Arrêts (si applicable)</Label>
+         <div className="space-y-2 p-4 border rounded-lg"> {/* Added styling */}
+             <Label htmlFor="truck-arrets-explication" className="font-semibold text-lg text-foreground">Explication des Arrêts (si applicable)</Label>
              <Textarea
                 id="truck-arrets-explication"
                 name="arretsExplication"
@@ -251,8 +259,8 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
              />
         </div>
 
-        <div className="space-y-3"> {/* Replaced mb-6 with space-y-3 */}
-          <h3 className="font-medium text-gray-700 dark:text-gray-300">
+        <div className="space-y-3 p-4 border rounded-lg"> {/* Added styling */}
+          <h3 className="font-semibold text-lg text-foreground">
             Tableau de Pointage
           </h3>
           <div className="overflow-x-auto">
@@ -327,7 +335,7 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
                     {truck.counts.map((count, i) => (
                       <TableCell key={i} className="p-1">
                         <Input
-                          type="text" // Use type="number" for better input validation?
+                          type="text" // Keep as text to allow empty input initially
                           inputMode="numeric" // Hint for mobile keyboards
                           className="w-full h-8 text-sm text-center min-w-[40px]"
                           value={count}
@@ -370,15 +378,7 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
                     </TableCell>
                     {/* Calculated Total (Read Only) */}
                      <TableCell className="p-1 font-semibold text-center align-middle">
-                         {calculateTotal(truck)}
-                       {/* Or use a read-only input
-                       <Input
-                        type="text"
-                        className="w-full h-8 text-sm text-center min-w-[60px] bg-muted/70 font-semibold"
-                        value={calculateTotal(truck)}
-                        readOnly
-                        tabIndex={-1} // Prevent tabbing into read-only
-                      /> */}
+                         {truck.total}
                     </TableCell>
                     <TableCell className="p-1">
                       <Input
@@ -405,10 +405,11 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
                         <Button
                             variant="ghost"
                             size="icon"
+                            type="button" // Ensure it doesn't submit a form
                             className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                             onClick={() => deleteTruck(truck.id)}
                             >
-                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Supprimer Camion</span>
                         </Button>
                     </TableCell>
@@ -437,14 +438,14 @@ export function TruckTracking({ selectedDate }: TruckTrackingProps) { // Updated
                  </TableFooter> */}
             </Table>
           </div>
-            <Button onClick={addTruck} variant="outline" size="sm" className="mt-4"> {/* Added margin-top */}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus mr-2 h-4 w-4"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <Button onClick={addTruck} variant="outline" size="sm" className="mt-4" type="button"> {/* Added margin-top and type="button" */}
+                <Plus className="mr-2 h-4 w-4"/>
                 Ajouter Camion
             </Button>
         </div>
-        <div className="flex justify-end space-x-3">
-          <Button variant="outline">Enregistrer</Button>
-          <Button>Soumettre</Button>
+        <div className="mt-8 flex justify-end space-x-3"> {/* Added margin-top */}
+          <Button variant="outline" type="button">Enregistrer</Button> {/* Added type="button" */}
+          <Button type="submit">Soumettre</Button> {/* Kept as submit for potential form wrapper */}
         </div>
       </CardContent>
     </Card>

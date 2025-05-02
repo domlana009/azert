@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
@@ -19,34 +20,50 @@ const firebaseConfig = {
 
 // Initialize Firebase only if it hasn't been initialized yet
 let app;
+let auth: ReturnType<typeof getAuth> | null = null; // Initialize auth to null
+
+// Function to check if API key is potentially valid (basic check)
+function isApiKeyPotentiallyValid(apiKey?: string): boolean {
+  // Basic check: Not empty and doesn't look like a placeholder
+  return !!apiKey && !apiKey.startsWith("YOUR_") && apiKey.length > 10;
+}
+
 if (!getApps().length) {
   // Validate essential config values before initializing
-  if (!firebaseConfig.apiKey) {
-    console.error("Firebase API Key is missing. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is set.");
+  if (!isApiKeyPotentiallyValid(firebaseConfig.apiKey)) {
+    console.error(`Firebase API Key is missing or invalid: '${firebaseConfig.apiKey}'. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_API_KEY is set correctly.`);
   }
   if (!firebaseConfig.projectId) {
      console.error("Firebase Project ID is missing. Please check your .env file and ensure NEXT_PUBLIC_FIREBASE_PROJECT_ID is set.");
   }
-  // Add more checks as needed
+  // Add more checks as needed (e.g., authDomain)
 
   try {
      app = initializeApp(firebaseConfig);
-  } catch (error) {
-     console.error("Error initializing Firebase:", error);
+     // Initialize Firebase Authentication and get a reference to the service only after successful app initialization
+     auth = getAuth(app);
+     console.log("Firebase initialized successfully."); // Log success
+  } catch (error: any) { // Catch specific error type if possible
+     console.error("Error initializing Firebase:", error.message || error);
      // Handle initialization error (e.g., show a message to the user)
+     // You might want to set a global error state here
   }
 
 } else {
   app = getApp();
+   // Ensure auth is initialized if the app already exists
+  try {
+    auth = getAuth(app);
+     console.log("Firebase app already initialized."); // Log info
+  } catch (error: any) {
+     console.error("Error getting Firebase Auth for existing app:", error.message || error);
+  }
 }
 
-// Initialize Firebase Authentication and get a reference to the service
-// Ensure 'app' is defined before calling getAuth
-const auth = app ? getAuth(app) : null;
 
-// Check if auth initialization failed
-if (!auth && app) {
-  console.error("Firebase Authentication could not be initialized. Check Firebase config and initialization.");
+// Check if auth initialization failed after trying
+if (!auth && app) { // Only log if app was potentially initialized but auth failed
+  console.error("Firebase Authentication could not be initialized. Check Firebase config and potential initialization errors above.");
 }
 
 export { app, auth };

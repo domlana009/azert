@@ -44,9 +44,7 @@ const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
 export default function Home() {
   const [activeTab, setActiveTab] = useState("daily-report");
   // Renamed currentDate to selectedDate and initialized with today's date
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  // selectedPoste state seems unused in this component's main logic after previous changes. Removed it for now.
-  // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Initialize with new Date()
   const { user, loading, logout } = useAuth(); // Use the auth hook
   const router = useRouter(); // Initialize router
   const [isClient, setIsClient] = useState(false); // State to track client-side mount
@@ -69,6 +67,11 @@ export default function Home() {
   // Helper function to get formatted date string, handles undefined case
   const getFormattedDate = (date: Date | undefined, options: Intl.DateTimeFormatOptions): string => {
     if (!date) return "Sélectionner une date"; // Placeholder if no date selected
+    // Ensure date is a valid Date object before formatting
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+       console.warn("Invalid date provided to getFormattedDate:", date);
+       return "Date invalide";
+    }
     return date.toLocaleDateString("fr-FR", options);
   };
 
@@ -83,15 +86,14 @@ export default function Home() {
     try {
       await logout();
       // Redirect handled by the useEffect hook above
-      // router.push('/login'); // Remove explicit redirect here
     } catch (error) {
       console.error("Logout failed:", error);
       // Optionally show an error message to the user
     }
   };
 
-    // Show loading state while authentication status is being determined
-  if (loading || !isClient) { // Also wait for client mount
+    // Show loading state while authentication status is being determined or client isn't mounted
+  if (loading || !isClient) {
     return <div className="flex justify-center items-center min-h-screen">Chargement...</div>; // Show loading state
   }
 
@@ -108,6 +110,15 @@ export default function Home() {
      // Logic to fetch or determine the value for the day before currentDate
      // This is just a placeholder
      console.log("Fetching previous day 3rd shift end for:", currentDate);
+     // Example: Fetch from Firestore based on the date (formatted YYYY-MM-DD)
+     // const prevDay = new Date(currentDate);
+     // prevDay.setDate(prevDay.getDate() - 1);
+     // const formattedPrevDay = prevDay.toISOString().split('T')[0];
+     // const docRef = doc(db, "dailyData", formattedPrevDay); // Assuming Firestore setup
+     // const docSnap = await getDoc(docRef);
+     // if (docSnap.exists()) {
+     //   return docSnap.data().poste3EndCounter || null; // Adjust field name
+     // }
      return "9341.0"; // Replace with actual fetched data or null
    };
    const previousDayThirdShiftEnd = getPreviousDayThirdShiftEnd(selectedDate);
@@ -160,10 +171,12 @@ export default function Home() {
               <Avatar className="w-10 h-10">
                  <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" data-ai-hint="user profile picture" />
                  <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                   {/* Check if user and user.email exist before accessing properties */}
                    {user?.email ? user.email.substring(0, 2).toUpperCase() : '??'}
                 </AvatarFallback>
               </Avatar>
               {/* Link to admin page - Conditionally render based on role */}
+               {/* Check if user and user.role exist */}
                {user?.role === 'admin' && (
                   <Link href="/admin" passHref>
                       <Button variant="outline">Admin Panel</Button>

@@ -25,6 +25,15 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    // Ensure auth is initialized
+    if (!auth) {
+        const authErrorMsg = "Erreur d'initialisation de l'authentification. Vérifiez la configuration Firebase.";
+        setError(authErrorMsg);
+        toast({ title: "Erreur", description: authErrorMsg, variant: "destructive" });
+        setLoading(false);
+        return;
+    }
+
     try {
       // Use userEmail state variable for login
       await signInWithEmailAndPassword(auth, userEmail, password);
@@ -41,7 +50,7 @@ export default function LoginPage() {
         errorMessage = "Utilisateur ou mot de passe invalide."; // Updated message
       } else if (err.code === 'auth/invalid-email') {
         errorMessage = "Format d'utilisateur invalide (doit être un email)."; // Updated message
-      } else if (err.code === 'auth/invalid-api-key') {
+      } else if (err.code === 'auth/invalid-api-key' || err.code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') {
          errorMessage = "Erreur de configuration : Clé API Firebase invalide.";
       } else if (err.code === 'auth/missing-password') {
          errorMessage = "Mot de passe manquant.";
@@ -101,4 +110,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react"; // Import useEffect
@@ -19,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert"; // Import Alert for errors
 import { AlertCircle } from "lucide-react"; // Icon for errors
 import { Textarea } from "@/components/ui/textarea"; // Import Textarea
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 
 interface R0ReportProps {
@@ -185,6 +187,8 @@ function parseDurationToMinutes(duration: string): number {
    if (match) {
      hours = match[1] ? parseInt(match[1], 10) : 0;
      minutes = parseInt(match[2], 10);
+      // Validate parsed numbers
+     if (isNaN(hours) || isNaN(minutes)) return 0;
      return (hours * 60) + minutes;
    }
 
@@ -193,6 +197,7 @@ function parseDurationToMinutes(duration: string): number {
    match = cleaned.match(/^(\d{1,2})\s?H$/);
     if (match) {
       hours = parseInt(match[1], 10);
+      if (isNaN(hours)) return 0;
       return hours * 60;
     }
 
@@ -200,6 +205,7 @@ function parseDurationToMinutes(duration: string): number {
   match = cleaned.match(/^(\d+)\s?M?$/);
   if (match) {
     minutes = parseInt(match[1], 10);
+    if (isNaN(minutes)) return 0;
     return minutes;
   }
 
@@ -224,9 +230,19 @@ function formatHoursToHoursMinutes(totalHours: number): string {
     return `${hours}h ${minutes}m`;
 }
 
+// Helper function to validate and parse counter values (returns null on failure)
+function validateAndParseCounterValue(value: string): number | null {
+    if (!value) return 0; // Treat empty as 0 for calculation consistency
+    const cleaned = value.replace(/[^0-9.,]/g, '').replace(',', '.');
+    if (cleaned === '' || cleaned === '.' || cleaned === ',') return null; // Incomplete input
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed; // Return null if not a valid number
+}
+
 
 // Added type prop
 export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0ReportProps) { // Updated prop name
+   const { toast } = useToast();
    const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Default to 1er Poste
    // State to hold calculated gross hours per poste and total
    const [calculatedHours, setCalculatedHours] = useState<{ poste: number[]; total: number }>({ poste: [0, 0, 0], total: 0 });
@@ -368,28 +384,33 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
      const validateAndCalculateCompteurHours = () => {
         let validationPassed = true;
         const newErrors = ['', '', '']; // Order: 1er, 2eme, 3eme
-        const previousDayFin3Parsed = previousDayThirdShiftEnd ? parseFloat(previousDayThirdShiftEnd) : NaN;
+        const previousDayFin3Parsed = validateAndParseCounterValue(previousDayThirdShiftEnd || ''); // Handle null/undefined
 
         const posteHours = formData.indexCompteurs.map((compteur, index) => {
             const posteName = POSTE_ORDER[index];
             const debutStr = compteur.debut;
             const finStr = compteur.fin;
 
-            // If both fields are empty, skip validation and calculation for this poste
-            if (debutStr === '' && finStr === '') {
-                 newErrors[index] = ''; // Clear any previous error
+            const debut = validateAndParseCounterValue(debutStr);
+            const fin = validateAndParseCounterValue(finStr);
+
+            // If both fields are empty or invalid for parsing, skip validation and return 0 hours
+            if ((debutStr === '' && finStr === '') || debut === null || fin === null) {
+                 // Clear error only if both are empty, otherwise keep potential parsing error
+                 if (debutStr === '' && finStr === '') {
+                     newErrors[index] = '';
+                 } else if (debut === null && debutStr !== '') {
+                      newErrors[index] = "Début invalide.";
+                      validationPassed = false;
+                 } else if (fin === null && finStr !== '') {
+                     newErrors[index] = "Fin invalide.";
+                      validationPassed = false;
+                 }
+                 // Don't reset errors if one field is valid and the other is empty/invalid yet
                  return 0;
              }
 
-            const debut = parseFloat(debutStr);
-            const fin = parseFloat(finStr);
-
-            // 1. Basic Validation (Numeric, Fin >= Debut, Duration <= Max)
-            if (isNaN(debut) || isNaN(fin)) {
-                newErrors[index] = "Début et Fin doivent être des nombres.";
-                validationPassed = false;
-                return 0; // Return 0, validation failed
-            }
+            // 1. Basic Validation (Fin >= Debut, Duration <= Max)
             if (fin < debut) {
                 newErrors[index] = "Fin doit être supérieur ou égal à Début.";
                 validationPassed = false;
@@ -405,52 +426,55 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
             // 2. Sequential Validation (Check if current Debut matches previous Fin)
             // Index 0 (1er Poste): Check against previous day's 3eme Poste Fin
             if (index === 0) {
-                 if (!isNaN(previousDayFin3Parsed)) { // Only validate if previous day data exists
+                 if (previousDayFin3Parsed !== null) { // Only validate if previous day data exists and is valid
                     if (debut !== previousDayFin3Parsed) {
                        newErrors[index] = `Début (${debut}) doit correspondre à Fin (${previousDayFin3Parsed}) du 3ème Poste de la veille.`;
                        validationPassed = false;
                        return 0;
                     }
                  } else if (previousDayThirdShiftEnd === undefined) {
-                     // Optional: Handle case where prop wasn't passed (might be first day entry)
-                     // console.warn("Fin du 3ème Poste de la veille non fournie.");
+                     // Prop wasn't passed (might be first day entry) - OK
                  } else if (previousDayThirdShiftEnd === null) {
-                     // Optional: Handle case where previous day had no 3rd shift data
-                     // console.info("Pas de données pour le 3ème Poste de la veille.");
+                     // Previous day had no 3rd shift data - OK
+                 } else {
+                      // previousDayThirdShiftEnd was invalid - Maybe warn or add error?
+                      // console.warn("Fin du 3ème Poste de la veille est invalide.");
+                      // For now, let's allow starting without a valid previous value if it's unparseable
                  }
-                 // If previousDayFin3Parsed is NaN, we skip this validation for the first poste
             }
             // Index 1 (2eme Poste): Check against 1er Poste Fin
             else if (index === 1) {
                 const prevFinStr = formData.indexCompteurs[0]?.fin;
-                if (prevFinStr) { // Only validate if 1er Fin exists and is numeric
-                    const prevFin = parseFloat(prevFinStr);
-                    if (!isNaN(prevFin) && debut !== prevFin) {
+                const prevFin = validateAndParseCounterValue(prevFinStr || '');
+                if (prevFin !== null) { // Only validate if 1er Fin exists and is numeric
+                    if (debut !== prevFin) {
                         newErrors[index] = `Début (${debut}) doit correspondre à Fin (${prevFin}) du ${POSTE_ORDER[0]} Poste.`;
                         validationPassed = false;
                         return 0;
                     }
-                } else if (formData.indexCompteurs[0]?.debut !== '') { // Error if debut exists but fin doesn't
-                     newErrors[index] = `Fin du ${POSTE_ORDER[0]} Poste manquante pour validation.`;
+                } else if (formData.indexCompteurs[0]?.debut !== '' && prevFinStr !== '') { // Error if debut exists but fin is invalid/empty
+                     newErrors[index] = `Fin invalide ou manquante pour ${POSTE_ORDER[0]} Poste pour validation.`;
                      validationPassed = false;
                      return 0;
                  }
+                 // else: Previous fin is empty/0, allow start (assumes it's the first entry or previous was 0)
             }
             // Index 2 (3eme Poste): Check against 2eme Poste Fin
             else if (index === 2) {
                 const prevFinStr = formData.indexCompteurs[1]?.fin;
-                 if (prevFinStr) { // Only validate if 2eme Fin exists and is numeric
-                    const prevFin = parseFloat(prevFinStr);
-                    if (!isNaN(prevFin) && debut !== prevFin) {
+                const prevFin = validateAndParseCounterValue(prevFinStr || '');
+                 if (prevFin !== null) { // Only validate if 2eme Fin exists and is numeric
+                    if (debut !== prevFin) {
                         newErrors[index] = `Début (${debut}) doit correspondre à Fin (${prevFin}) du ${POSTE_ORDER[1]} Poste.`;
                         validationPassed = false;
                         return 0;
                     }
-                 } else if (formData.indexCompteurs[1]?.debut !== '') { // Error if debut exists but fin doesn't
-                     newErrors[index] = `Fin du ${POSTE_ORDER[1]} Poste manquante pour validation.`;
+                 } else if (formData.indexCompteurs[1]?.debut !== '' && prevFinStr !== '') { // Error if debut exists but fin is invalid/empty
+                     newErrors[index] = `Fin invalide ou manquante pour ${POSTE_ORDER[1]} Poste pour validation.`;
                      validationPassed = false;
                      return 0;
                  }
+                  // else: Previous fin is empty/0, allow start
             }
 
              // Validation passed for this poste
@@ -475,7 +499,11 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
              setCalculatedHours({ poste: [0, 0, 0], total: 0 });
               setFormData(prevData => ({
                 ...prevData,
-                bulls: ["", "", ""] // Clear display hours
+                bulls: ["", "", ""], // Clear display hours
+                exploitation: { // Also clear calculated HEURES COMPTEUR
+                   ...prevData.exploitation,
+                   "HEURES COMPTEUR": "Erreur Compteur"
+                }
             }));
         }
         return validationPassed; // Return validation status
@@ -484,7 +512,12 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
     // Function to calculate total stop duration
     const calculateTotalStops = () => {
         const totalMinutes = formData.ventilation.reduce((acc, item) => {
-            return acc + parseDurationToMinutes(item.duree);
+             const minutes = parseDurationToMinutes(item.duree);
+             if (isNaN(minutes)) {
+                 console.warn(`Invalid duration format for ventilation code ${item.code}: "${item.duree}"`);
+                 return acc; // Skip invalid durations
+             }
+             return acc + minutes;
         }, 0);
         setTotalStopMinutes(totalMinutes);
     };
@@ -538,19 +571,21 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
 
         if (!isCompteurValid) {
             console.error("Validation failed: Invalid counter inputs.");
-            // Optionally, scroll to the first error or show a general message
-            // For example, find the first input with an error and focus it
+            toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les compteurs.", variant: "destructive" });
+
+            // Focus the first input with an error
             const firstErrorIndex = counterErrors.findIndex(err => err !== '');
             if (firstErrorIndex !== -1) {
-                const firstErrorInput = document.getElementById(`index-debut-${POSTE_ORDER[firstErrorIndex]}`);
+                const firstErrorInputId = `index-debut-${POSTE_ORDER[firstErrorIndex]}`; // Focus debut input
+                const firstErrorInput = document.getElementById(firstErrorInputId);
                 firstErrorInput?.focus();
             }
-            // toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les compteurs.", variant: "destructive" });
             return; // Prevent submission
         }
 
         // If validation passes, proceed with submission logic...
         console.log("Form submitted:", formData);
+        toast({ title: "Succès", description: "Rapport R0 soumis avec succès." });
         // TODO: Replace with actual submission logic (e.g., API call)
         // Example: await submitR0Report(formData);
     };
@@ -616,9 +651,8 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                                 <Label htmlFor={`index-debut-${poste}`} className="text-xs text-muted-foreground">Début</Label>
                                 <Input
                                     id={`index-debut-${poste}`}
-                                    type="number"
-                                    step="0.01" // Allow decimals for hours/counters
-                                    min="0" // Prevent negative values
+                                    type="text" // Use text to allow intermediate states like '.'
+                                    inputMode="decimal"
                                     value={formData.indexCompteurs[index]?.debut || ''}
                                     onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'debut')}
                                     placeholder="Index début"
@@ -631,9 +665,8 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                                  <Label htmlFor={`index-fin-${poste}`} className="text-xs text-muted-foreground">Fin</Label>
                                 <Input
                                     id={`index-fin-${poste}`}
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
+                                    type="text" // Use text
+                                    inputMode="decimal"
                                     value={formData.indexCompteurs[index]?.fin || ''}
                                     onChange={(e) => handleInputChange(e, "indexCompteurs", index, 'fin')}
                                     placeholder="Index fin"
@@ -797,11 +830,11 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                                     id={`expl-${item.toLowerCase().replace(/\s/g, '-')}`}
                                     type={item === "HEURES COMPTEUR" ? "text" : "number"} // Use number for metrics, text for calculated hours
                                     step={item !== "HEURES COMPTEUR" ? "0.01" : undefined} // Allow decimals for metrics
-                                    className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-muted font-medium border-none focus-visible:ring-0 focus-visible:ring-offset-0' : ''}`}
+                                    className={`h-8 ${item === "HEURES COMPTEUR" ? 'bg-input font-medium border-input focus-visible:ring-0 focus-visible:ring-offset-0 cursor-default' : ''}`} // Updated styling for read-only
                                     value={formData.exploitation[item]}
                                     onChange={(e) => handleInputChange(e, 'exploitation', item)}
                                     readOnly={item === "HEURES COMPTEUR"} // Make Heures Compteur read-only
-                                    disabled={item === "HEURES COMPTEUR"} // Visually indicate it's disabled
+                                    // Removed disabled attribute, use readOnly and styling
                                     placeholder={item !== "HEURES COMPTEUR" ? "0" : ""}
                                     tabIndex={item === "HEURES COMPTEUR" ? -1 : undefined}
                                 />
@@ -826,7 +859,7 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                       type="text"
                       value={formData.bulls[index]} // Display formatted gross hours from bulls array
                       readOnly
-                      className="h-8 bg-muted font-medium border-none focus-visible:ring-0 focus-visible:ring-offset-0" // Style as read-only
+                      className="h-8 bg-input font-medium border-input focus-visible:ring-0 focus-visible:ring-offset-0 cursor-default" // Style as read-only input
                       tabIndex={-1} // Make it non-focusable
                     />
                   </div>
@@ -970,9 +1003,8 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                         <Label htmlFor="tricone-index-compteur">Index Compteur (Tricone)</Label>
                         <Input
                             id="tricone-index-compteur"
-                            type="number"
-                            step="0.01"
-                            min="0"
+                            type="text" // Use text for flexibility
+                            inputMode="decimal"
                             placeholder="Index au moment de la dépose"
                             name="indexCompteur"
                             value={formData.tricone.indexCompteur}
@@ -1001,9 +1033,8 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                             <Label htmlFor="gasoil-index">Index Compteur (Gasoil)</Label>
                             <Input
                                 id="gasoil-index"
-                                type="number"
-                                step="0.01"
-                                min="0"
+                                type="text" // Use text
+                                inputMode="decimal"
                                 name="indexCompteur"
                                 value={formData.gasoil.indexCompteur}
                                  onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'indexCompteur')}
@@ -1014,9 +1045,8 @@ export function R0Report({ selectedDate, previousDayThirdShiftEnd = null }: R0Re
                             <Label htmlFor="gasoil-quantite">Quantité Délivrée</Label>
                             <Input
                                 id="gasoil-quantite"
-                                type="number"
-                                step="0.01"
-                                min="0"
+                                type="text" // Use text
+                                inputMode="decimal"
                                 name="quantiteDelivree"
                                 value={formData.gasoil.quantiteDelivree}
                                 onChange={(e) => handleInputChange(e, 'gasoil', undefined, 'quantiteDelivree')}
