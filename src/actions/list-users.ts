@@ -1,3 +1,4 @@
+
 'use server';
 
 import { adminAuth } from '@/lib/firebase/admin';
@@ -12,6 +13,8 @@ interface ListUsersResult {
     email: string | undefined; // Email might be undefined
     creationTime: string;
     lastSignInTime: string;
+    disabled: boolean;
+    isAdmin: boolean; // Added isAdmin flag
   }[];
 }
 
@@ -24,12 +27,24 @@ export async function listUsersAction(): Promise<ListUsersResult> {
 
   try {
     const listUsersResult = await adminAuth.listUsers(1000); // List up to 1000 users
-    const users = listUsersResult.users.map((userRecord: UserRecord) => ({
-        uid: userRecord.uid,
-        email: userRecord.email,
-        creationTime: userRecord.metadata.creationTime,
-        lastSignInTime: userRecord.metadata.lastSignInTime,
-    }));
+
+    const users = listUsersResult.users.map((userRecord: UserRecord) => {
+        // Check for the admin custom claim
+        const isAdmin = !!userRecord.customClaims?.admin; // Check if customClaims exist and admin is true
+
+        return {
+            uid: userRecord.uid,
+            email: userRecord.email,
+            creationTime: userRecord.metadata.creationTime,
+            lastSignInTime: userRecord.metadata.lastSignInTime,
+            disabled: userRecord.disabled,
+            isAdmin: isAdmin,
+        };
+    });
+
+    // Optionally sort users, e.g., by creation time or email
+    users.sort((a, b) => new Date(b.creationTime).getTime() - new Date(a.creationTime).getTime());
+
 
     return {
       success: true,
