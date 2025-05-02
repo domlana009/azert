@@ -5,7 +5,7 @@ import React, { useState, useEffect, useTransition } from 'react';
 import { useAuth } from '@/hooks/useAuth.tsx';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Added CardDescription
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button'; // Import buttonVariants
 import Link from 'next/link';
 import { listUsersAction } from '@/actions/list-users';
 import { setUserRoleAction } from '@/actions/set-user-role'; // Import new action
@@ -80,7 +80,7 @@ export default function AdminPage() {
         fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, authLoading, toast]);
+  }, [currentUser, authLoading]); // Removed toast from dependencies
 
 
   // --- Action Handlers ---
@@ -161,7 +161,7 @@ export default function AdminPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Email</TableHead>
+                                    <TableHead>User</TableHead>
                                     <TableHead>Rôle</TableHead>
                                     <TableHead>Statut</TableHead>
                                     <TableHead>UID</TableHead>
@@ -180,7 +180,7 @@ export default function AdminPage() {
                                             {usr.isAdmin || (process.env.NEXT_PUBLIC_ADMIN_UID && usr.uid === process.env.NEXT_PUBLIC_ADMIN_UID) ? (
                                                 <Badge variant="secondary"><ShieldCheck className="mr-1 h-3 w-3" /> Admin</Badge>
                                             ) : (
-                                                <Badge variant="outline">Utilisateur</Badge>
+                                                <Badge variant="outline">User</Badge>
                                             )}
                                         </TableCell>
                                          <TableCell>
@@ -292,9 +292,14 @@ export default function AdminPage() {
                                                                     </AlertDialogHeader>
                                                                     <AlertDialogFooter>
                                                                         <AlertDialogCancel disabled={isPending}>Annuler</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={() => handleToggleStatus(usr.uid, true)} disabled={isPending} className={buttonVariants({ variant: "destructive" })}>
+                                                                        {/* Replace AlertDialogAction with Button for destructive variant */}
+                                                                        <Button
+                                                                            variant="destructive"
+                                                                            onClick={() => handleToggleStatus(usr.uid, true)}
+                                                                            disabled={isPending}
+                                                                        >
                                                                             Désactiver
-                                                                        </AlertDialogAction>
+                                                                        </Button>
                                                                     </AlertDialogFooter>
                                                                 </AlertDialogContent>
                                                             </AlertDialog>
@@ -316,9 +321,14 @@ export default function AdminPage() {
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel disabled={isPending}>Annuler</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleDeleteUser(usr.uid)} disabled={isPending} className={buttonVariants({ variant: "destructive" })}>
+                                                                    {/* Replace AlertDialogAction with Button for destructive variant */}
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        onClick={() => handleDeleteUser(usr.uid)}
+                                                                        disabled={isPending}
+                                                                    >
                                                                         Supprimer
-                                                                    </AlertDialogAction>
+                                                                    </Button>
                                                                 </AlertDialogFooter>
                                                             </AlertDialogContent>
                                                         </AlertDialog>
@@ -344,4 +354,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
 
