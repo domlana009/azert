@@ -1,4 +1,3 @@
-
 # ReportZen
 
 This is a Next.js application for daily job reporting using Firebase for authentication.
@@ -25,8 +24,8 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   Go to Project Settings > General.
     *   Under "Your apps", click the Web icon (`</>`) to add a web app.
     *   Register your app and copy the `firebaseConfig` object.
-    *   Enable Firebase Authentication (Email/Password sign-in method).
-    *   **Admin User Email:** Decide on the email for your initial admin user (e.g., `j.abbay@admin.com`). **You must create this user manually in the Firebase Console before trying to log in.**
+    *   **Enable Firebase Authentication:** Go to Authentication > Sign-in method, and enable the **Email/Password** provider.
+    *   **Admin User Email:** Decide on the email for your initial admin user (e.g., `j.abbay@admin.com`).
     *   **Service Account Key (for Admin Actions):**
         *   Go to Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file will download.
@@ -44,11 +43,12 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   If using Genkit with Google AI, add your `GOOGLE_GENAI_API_KEY`.
     *   **(Optional but Recommended for simpler Admin setup):** If you prefer *not* to use Firebase Custom Claims for admin identification initially, you can uncomment and set `NEXT_PUBLIC_ADMIN_UID` to the UID of the admin user *after* you create them via the Firebase Console. Get the UID from the Firebase Console (Authentication > Users). The `useAuth.tsx` hook currently prioritizes this environment variable method. If you use the custom claim method (checkbox in the create user form), adjust `useAuth.tsx` accordingly to check `decodedToken.admin` instead.
 
-5.  **Create the Initial Admin User in Firebase Console (Required):**
+5.  **IMPORTANT: Create the Initial Admin User in Firebase Console (Required):**
     *   Go to your Firebase project > Authentication > Users.
     *   Click "Add user".
-    *   Enter the email you decided on (e.g., `j.abbay@admin.com`) and a secure password (e.g., `123456` **for local testing only - use a strong password in production**).
+    *   Enter the **exact email** you decided on (e.g., `j.abbay@admin.com`) and a secure password (e.g., `123456` **for local testing only - use a strong password in production**).
     *   Click "Add user".
+    *   **You MUST complete this step before attempting to log in as the admin user.** Failure to do so will result in login errors (`auth/invalid-credential`).
 
 6.  **Run the development server:**
     ```bash
@@ -62,7 +62,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
 7.  Open [http://localhost:9002](http://localhost:9002) (or the specified port) with your browser to see the result.
 
 8.  **Log in as Admin:**
-    *   Log in to the ReportZen application with the admin credentials you created in the Firebase Console (e.g., `j.abbay@admin.com` / `123456`).
+    *   Log in to the ReportZen application with the admin credentials you created **manually** in the Firebase Console (e.g., `j.abbay@admin.com` / `123456`).
     *   **(If using `NEXT_PUBLIC_ADMIN_UID`):** If you haven't already, copy the UID of the user you just created (from Firebase Console > Authentication > Users) and set it as the value for `NEXT_PUBLIC_ADMIN_UID` in your `.env` file. Restart your development server (`npm run dev`).
     *   You should now see the "Admin Panel" button in the header if the admin role is correctly identified (either via `NEXT_PUBLIC_ADMIN_UID` or custom claims if you configured that). Click "Admin Panel", then "Create New User" to add other users via the application interface.
 
@@ -86,5 +86,3 @@ This is a Next.js application for daily job reporting using Firebase for authent
 *   Firebase Admin SDK (for server-side actions like user creation)
 *   Genkit (for potential GenAI features)
 *   date-fns
-
-```

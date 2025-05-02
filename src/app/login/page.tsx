@@ -11,8 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 export default function LoginPage() {
-  // Rename email state to userEmail to avoid confusion and fix ReferenceError
-  const [userEmail, setUserEmail] = useState('');
+  const [userEmail, setUserEmail] = useState(''); // Changed from 'email' to avoid confusion
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,6 +45,9 @@ export default function LoginPage() {
       let errorMessage = "Échec de la connexion. Veuillez vérifier vos identifiants.";
       // Provide more specific messages based on Firebase error codes
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        // This error often means the user doesn't exist or the password is wrong.
+        // Double-check that the user (e.g., j.abbay@admin.com) has been manually created in the Firebase Console
+        // with the correct password (e.g., 123456).
         errorMessage = "Identifiants invalides. Vérifiez votre email et mot de passe, ou assurez-vous que l'utilisateur existe."; // Updated message for invalid credential
       } else if (err.code === 'auth/invalid-email') {
         errorMessage = "Format d'email invalide."; // Changed label from User to Email in logic
@@ -75,7 +77,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label> {/* Changed label from Utilisateur to User */}
+              <Label htmlFor="email">User</Label> {/* Changed label from User to Email */}
               <Input
                 id="email"
                 type="email" // Keep type as email for Firebase Auth compatibility
