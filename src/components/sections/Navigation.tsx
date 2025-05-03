@@ -1,4 +1,3 @@
-
 "use client";
 
 interface NavItem {
@@ -15,7 +14,8 @@ interface NavigationProps {
 export function Navigation({ activeTab, setActiveTab, allowedSections }: NavigationProps) {
 
   return (
-    <nav className="border-b overflow-x-auto whitespace-nowrap mb-6">
+    // Add overflow-x-auto and whitespace-nowrap for horizontal scrolling
+    <nav className="border-b overflow-x-auto whitespace-nowrap mb-6 pb-px">
       <div className="flex space-x-1">
         {allowedSections.map((item) => ( // Map over allowedSections
           <button

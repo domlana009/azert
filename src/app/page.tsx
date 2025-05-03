@@ -1,19 +1,18 @@
-
 "use client";
 
-import React, { useState, useEffect } from "react"; // Added React import for clarity, though often implicit
+import React, { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Bell, Calendar as CalendarIcon } from "lucide-react"; // Added CalendarIcon
+import { Bell, Calendar as CalendarIcon } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"; // Added Popover components
-import { Calendar } from "@/components/ui/calendar"; // Added Calendar component
-import { format } from "date-fns"; // Added date-fns format
-import { fr } from "date-fns/locale"; // Added French locale for date formatting
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 import {
   Navigation,
@@ -62,7 +61,6 @@ export default function Home() {
   }, [user?.allowedSections, loading]); // Add loading dependency
 
   const [activeTab, setActiveTab] = useState(() => allowedSections[0]?.id || ""); // Default to first allowed tab or empty string
-   // Renamed currentDate to selectedDate and initialized with today's date
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Initialize with new Date()
 
 
@@ -134,46 +132,42 @@ export default function Home() {
    }
 
 
-  // TODO: Fetch previous day's 3rd shift end counter data here based on selectedDate
-  // Example placeholder: Needs to be dynamic based on selectedDate
-   const getPreviousDayThirdShiftEnd = (currentDate: Date | undefined): string | null => {
+  // Fetch previous day's 3rd shift end counter data based on selectedDate
+  const getPreviousDayThirdShiftEnd = (currentDate: Date | undefined): string | null => {
      if (!currentDate) return null;
-     // Logic to fetch or determine the value for the day before currentDate
-     // This is just a placeholder
-     console.log("Fetching previous day 3rd shift end for:", currentDate);
-     // Example: Fetch from Firestore based on the date (formatted YYYY-MM-DD)
+     // Placeholder: Replace with actual data fetching logic (e.g., Firestore)
+     console.log("Fetching previous day 3rd shift end for:", currentDate.toLocaleDateString());
+     // Example: Simulate fetching data for the previous day. In a real app, query your data source.
      // const prevDay = new Date(currentDate);
      // prevDay.setDate(prevDay.getDate() - 1);
-     // const formattedPrevDay = prevDay.toISOString().split('T')[0];
-     // const docRef = doc(db, "dailyData", formattedPrevDay); // Assuming Firestore setup
-     // const docSnap = await getDoc(docRef);
-     // if (docSnap.exists()) {
-     //   return docSnap.data().poste3EndCounter || null; // Adjust field name
-     // }
-     return "9341.0"; // Replace with actual fetched data or null
+     // const formattedPrevDay = prevDay.toISOString().split('T')[0]; // Format YYYY-MM-DD
+     // Replace with actual logic
+     if (currentDate.getDate() === 1) return "9300.0"; // Example value for the 1st of the month
+     return "9341.0"; // Example default value
    };
    const previousDayThirdShiftEnd = getPreviousDayThirdShiftEnd(selectedDate);
 
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-6 max-w-7xl"> {/* Increased max-width */}
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
         <header className="mb-8 border-b pb-4">
-          <div className="flex justify-between items-center flex-wrap gap-4"> {/* Added flex-wrap and gap */}
+          {/* Use flex-wrap for better responsiveness */}
+          <div className="flex flex-wrap justify-between items-center gap-4">
             <div className="flex-shrink-0">
               <h1 className="text-2xl font-bold">R0</h1> {/* Updated Title */}
-              <p className="text-muted-foreground">Application de rapport quotidien</p>
+              <p className="text-muted-foreground text-sm sm:text-base">Application de rapport quotidien</p>
             </div>
 
-            {/* Date Picker */}
+            {/* Date Picker - ensure it doesn't grow too large */}
             <div className="flex-grow sm:flex-grow-0 order-3 sm:order-none w-full sm:w-auto">
                 <Popover>
                     <PopoverTrigger asChild>
                     <Button
                         variant={"outline"}
                         className={cn(
-                        "w-full sm:w-[280px] justify-start text-left font-normal", // Adjusted width for full on small screens
+                        "w-full sm:w-[280px] justify-start text-left font-normal",
                         !selectedDate && "text-muted-foreground"
                         )}
                     >
@@ -193,51 +187,45 @@ export default function Home() {
                 </Popover>
              </div>
 
-
-            <div className="flex items-center space-x-4 order-2 sm:order-none">
-              <Button className="rounded-full" variant="ghost" size="icon">
+            {/* User actions - grouped together */}
+            <div className="flex items-center space-x-2 sm:space-x-4 order-2 sm:order-none">
+              <Button className="rounded-full flex-shrink-0" variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Notifications</span>
               </Button>
-              <Avatar className="w-10 h-10">
+              <Avatar className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0">
                  <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" data-ai-hint="user profile picture" />
-                 <AvatarFallback className="bg-primary text-primary-foreground font-bold">
-                   {/* Check if user and user.email exist before accessing properties */}
+                 <AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs sm:text-sm">
                    {user?.email ? user.email.substring(0, 2).toUpperCase() : '??'}
                 </AvatarFallback>
               </Avatar>
-              {/* Link to admin page - Conditionally render based on role */}
-               {/* Check if user and user.role exist */}
                {user?.role === 'admin' && (
                   <Link href="/admin" passHref>
-                      <Button variant="outline">Admin Panel</Button>
+                      <Button variant="outline" size="sm" className="flex-shrink-0">Admin</Button>
                   </Link>
                )}
-               {/* Logout Button */}
-                <Button variant="outline" onClick={handleLogout}>Déconnexion</Button>
+                <Button variant="outline" onClick={handleLogout} size="sm" className="flex-shrink-0">Déconnexion</Button>
             </div>
           </div>
         </header>
 
-        {/* Navigation Tabs - Only show allowed sections */}
+        {/* Navigation Tabs - Ensure horizontal scrolling on small screens */}
         <Navigation
             activeTab={activeTab}
             setActiveTab={setActiveTab}
-            allowedSections={allowedSections.map(s => ({ id: s.id, label: s.label }))} // Pass only id and label
+            allowedSections={allowedSections.map(s => ({ id: s.id, label: s.label }))}
         />
 
         {/* Tab Content */}
         <main id="tab-content" className="mt-6">
-           {/* Render content only when selectedDate is available */}
            {selectedDate ? (
                <>
                   {allowedSections.map(section => {
-                     if (activeTab !== section.id) return null; // Only render the active tab's component
+                     if (activeTab !== section.id) return null;
 
                      const Component = section.component;
-                     const props: any = { selectedDate }; // Base props
+                     const props: any = { selectedDate };
 
-                      // Add previousDayThirdShiftEnd only for specific components
                      if (section.id === 'activity-report' || section.id === 'r0-report') {
                           props.previousDayThirdShiftEnd = previousDayThirdShiftEnd;
                      }
@@ -245,16 +233,15 @@ export default function Home() {
                      return <Component key={section.id} {...props} />;
                   })}
 
-                  {/* Show message if no sections are allowed or none selected */}
                   {allowedSections.length === 0 && (
                       <div className="flex justify-center items-center h-64">
-                         <p className="text-muted-foreground text-lg">Vous n'avez accès à aucune section.</p>
+                         <p className="text-muted-foreground text-lg text-center">Vous n'avez accès à aucune section.</p>
                       </div>
                   )}
                </>
-           ) : ( // Show a message prompting date selection
+           ) : (
                  <div className="flex justify-center items-center h-64">
-                    <p className="text-muted-foreground text-lg">Veuillez sélectionner une date pour afficher les rapports.</p>
+                    <p className="text-muted-foreground text-lg text-center">Veuillez sélectionner une date pour afficher les rapports.</p>
                  </div>
             )}
         </main>

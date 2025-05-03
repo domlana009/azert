@@ -1,10 +1,9 @@
-
 "use client";
 
-import { useState, useEffect } from "react"; // Import useEffect
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Ensure Card is imported
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash, Plus, AlertCircle } from "lucide-react"; // Added Plus icon and AlertCircle
+import { Trash, Plus, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,7 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Import Select components
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -22,12 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
-import { Alert, AlertDescription } from "@/components/ui/alert"; // Import Alert for displaying errors
-import { cn } from "@/lib/utils"; // Import cn for conditional classes
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
-// Helper function to parse duration strings into minutes (copied from DailyReport)
+// Helper function to parse duration strings into minutes
 function parseDurationToMinutes(duration: string): number {
   if (!duration) return 0;
   const cleaned = duration.replace(/[^0-9Hh:·\s]/g, '').trim();
@@ -50,68 +49,60 @@ function parseDurationToMinutes(duration: string): number {
     return minutes;
   }
   console.warn(`Could not parse duration: "${duration}"`);
-  return 0; // Return 0 if parsing fails
+  return 0;
 }
 
-// Helper function to format minutes into HHh MMm string (copied from DailyReport)
+// Helper function to format minutes into HHh MMm string
 function formatMinutesToHoursMinutes(totalMinutes: number): string {
-  if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m"; // Return 0 if non-positive
+  if (isNaN(totalMinutes) || totalMinutes <= 0) return "0h 0m";
   const hours = Math.floor(totalMinutes / 60);
-  const minutes = Math.round(totalMinutes % 60); // Round minutes
+  const minutes = Math.round(totalMinutes % 60);
   return `${hours}h ${minutes}m`;
 }
 
 // Helper function to validate and parse counter values
 function validateAndParseCounterValue(value: string): number | null {
-    if (!value) return 0; // Treat empty as 0 for calculation, but might be invalid based on context
+    if (!value) return 0;
     const cleaned = value.replace(/[^0-9.,]/g, '').replace(',', '.');
-    // Allow empty or just "." or "," as intermediate states, but they parse to NaN
-    if (cleaned === '' || cleaned === '.' || cleaned === ',') return null; // Indicate parsing failure/incompleteness
+    if (cleaned === '' || cleaned === '.' || cleaned === ',') return null;
     const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? null : parsed; // Return null if parsing failed
+    return isNaN(parsed) ? null : parsed;
 }
 
 // Define total minutes for a 24-hour period
-const TOTAL_PERIOD_MINUTES = 24 * 60; // Changed from 8 * 60
+const TOTAL_PERIOD_MINUTES = 24 * 60;
 
-// Helper function to calculate total duration in minutes from counters, considering validation
+// Helper function to calculate total duration in minutes from counters
 function calculateTotalCounterMinutes(counters: Array<{ start: string; end: string; error?: string }>): number {
   const totalHours = counters.reduce((acc, counter) => {
-    // Only include valid entries in the sum
-    if (counter.error) return acc; // Skip entries with errors
-
+    if (counter.error) return acc;
     const startHours = validateAndParseCounterValue(counter.start);
     const endHours = validateAndParseCounterValue(counter.end);
-
-    // Check if parsing was successful and end >= start
     if (startHours !== null && endHours !== null && endHours >= startHours) {
       return acc + (endHours - startHours);
     }
-    // Ignore invalid or incomplete entries for the total calculation
     return acc;
   }, 0);
-  return Math.round(totalHours * 60); // Convert total hours to minutes and round
+  return Math.round(totalHours * 60);
 }
 
 
 interface ActivityReportProps {
-  selectedDate: Date; // Changed prop name and kept type as Date
-  previousDayThirdShiftEnd?: string | null; // Add prop for previous day's 3rd shift end counter
+  selectedDate: Date;
+  previousDayThirdShiftEnd?: string | null;
 }
 
-// Keep Poste constants for potential context or future use, even if UI element is removed
 type Poste = "1er" | "2ème" | "3ème";
 type Park = 'PARK 1' | 'PARK 2' | 'PARK 3';
 type StockType = 'NORMAL' | 'OCEANE' | 'PB30';
 type StockTime = 'HEURE DEBUT STOCK';
 
-// Updated Poste times and order - Order must match validation logic: 3, 1, 2
 const POSTE_TIMES: Record<Poste, string> = {
-  "3ème": "22:30 - 06:30", // Previous day to current day
-  "1er": "06:30 - 14:30",  // Current day
-  "2ème": "14:30 - 22:30", // Current day
+  "3ème": "22:30 - 06:30",
+  "1er": "06:30 - 14:30",
+  "2ème": "14:30 - 22:30",
 };
-const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"]; // Consistent order for UI and logic
+const POSTE_ORDER: Poste[] = ["3ème", "1er", "2ème"];
 const PARKS: Park[] = ['PARK 1', 'PARK 2', 'PARK 3'];
 const STOCK_TYPES: StockType[] = ['NORMAL', 'OCEANE', 'PB30'];
 const STOCK_TIME_LABEL: StockTime = 'HEURE DEBUT STOCK';
@@ -123,182 +114,136 @@ interface Stop {
   nature: string;
 }
 
-// Updated Counter interface: added poste, removed total, added optional error field
 interface Counter {
     id: string;
-    poste: Poste | ''; // Changed to mandatory with empty string default
+    poste: Poste | '';
     start: string;
     end: string;
-    error?: string; // Optional error message for this entry
+    error?: string;
 }
 
-// Interface for Liaison Counters (same structure as Counter) - Added poste
 interface LiaisonCounter {
     id: string;
-    poste: Poste | ''; // Changed to mandatory with empty string default
+    poste: Poste | '';
     start: string;
     end: string;
-    error?: string; // Optional error message for this entry
+    error?: string;
 }
 
-// Simplified Stock Entry interface - Added poste field
 interface StockEntry {
   id: string;
-  poste: Poste | ''; // Added Poste selection
+  poste: Poste | '';
   park: Park | '';
-  type: StockType | ''; // Only product types
-  quantity: string; // For NORMAL, OCEANE, PB30
-  startTime: string; // For HEURE DEBUT STOCK - kept separate for clarity
-  // Error is now calculated dynamically during render
+  type: StockType | '';
+  quantity: string;
+  startTime: string;
 }
 
-const MAX_HOURS_PER_POSTE = 8; // Max hours for a standard shift
+const MAX_HOURS_PER_POSTE = 8;
 
-export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }: ActivityReportProps) { // Updated prop name
+export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }: ActivityReportProps) {
   const { toast } = useToast();
 
-  // const [selectedPoste, setSelectedPoste] = useState<Poste>("1er"); // Removed Poste selection state
   const [stops, setStops] = useState<Stop[]>([
     { id: crypto.randomUUID(), duration: "", nature: "" },
   ]);
-  // Updated initial state for vibrator counters to include poste
   const [vibratorCounters, setVibratorCounters] = useState<Counter[]>([
-    { id: crypto.randomUUID(), poste: "", start: "", end: "" }, // Example values with poste
+    { id: crypto.randomUUID(), poste: "", start: "", end: "" },
   ]);
-  // State for liaison counters - Updated initial state to include poste
   const [liaisonCounters, setLiaisonCounters] = useState<LiaisonCounter[]>([
-    { id: crypto.randomUUID(), poste: "", start: "", end: "" }, // Example values with poste
+    { id: crypto.randomUUID(), poste: "", start: "", end: "" },
   ]);
-  // Updated state for stock entries - Added poste
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([
-      { id: crypto.randomUUID(), poste: '', park: '', type: '', quantity: '', startTime: '' } // Start with one empty entry including poste
+      { id: crypto.randomUUID(), poste: '', park: '', type: '', quantity: '', startTime: '' }
   ]);
-  // State for the single "Heure Debut Stock" time - This seems redundant if startTime is in StockEntry
-  // const [stockStartTime, setStockStartTime] = useState('');
-
 
   const [totalDowntime, setTotalDowntime] = useState(0);
-  const [operatingTime, setOperatingTime] = useState(TOTAL_PERIOD_MINUTES); // Use 24h base
-  // State for total counter durations
+  const [operatingTime, setOperatingTime] = useState(TOTAL_PERIOD_MINUTES);
   const [totalVibratorMinutes, setTotalVibratorMinutes] = useState(0);
   const [totalLiaisonMinutes, setTotalLiaisonMinutes] = useState(0);
-  // State to track if there are any counter errors
   const [hasVibratorErrors, setHasVibratorErrors] = useState(false);
   const [hasLiaisonErrors, setHasLiaisonErrors] = useState(false);
-  // State to track stock entry errors (specifically for poste selection)
   const [hasStockErrors, setHasStockErrors] = useState(false);
+  const [vibratorCounterErrors, setVibratorCounterErrors] = useState<Record<string, string>>({});
+  const [liaisonCounterErrors, setLiaisonCounterErrors] = useState<Record<string, string>>({});
 
-  // State for counter validation errors (including sequential checks) - for ActivityReport counters
-   const [vibratorCounterErrors, setVibratorCounterErrors] = useState<Record<string, string>>({}); // Use record for ID-based errors
-   const [liaisonCounterErrors, setLiaisonCounterErrors] = useState<Record<string, string>>({});
-
-
-    // Format date string once using the selectedDate prop
     const formattedDate = selectedDate.toLocaleDateString("fr-FR", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
     });
 
-
-  // Calculate total downtime and operating time whenever stops change
   useEffect(() => {
     const calculatedDowntime = stops.reduce((acc, stop) => acc + parseDurationToMinutes(stop.duration), 0);
     setTotalDowntime(calculatedDowntime);
+    const calculatedOperatingTime = TOTAL_PERIOD_MINUTES - calculatedDowntime;
+    setOperatingTime(calculatedOperatingTime >= 0 ? calculatedOperatingTime : 0);
+  }, [stops]);
 
-    const calculatedOperatingTime = TOTAL_PERIOD_MINUTES - calculatedDowntime; // Use 24h base
-    setOperatingTime(calculatedOperatingTime >= 0 ? calculatedOperatingTime : 0); // Ensure non-negative
-
-  }, [stops]); // Removed TOTAL_PERIOD_MINUTES dependency as it's constant
-
-
-  // Function to validate a single counter entry - Includes max duration and sequential checks
   const validateCounterEntry = (
         counterId: string,
         counters: Array<Counter | LiaisonCounter>,
         type: 'vibrator' | 'liaison',
         currentStartStr: string,
         currentEndStr: string,
-        currentPoste: Poste | '', // Mandatory Poste
-        previousDayData?: string | null // Only needed for 1er poste check
+        currentPoste: Poste | '',
+        previousDayData?: string | null
     ): string | undefined => {
         const startVal = validateAndParseCounterValue(currentStartStr);
         const endVal = validateAndParseCounterValue(currentEndStr);
 
-         // 0. Poste Validation (Must be selected if start or end has value)
          if ((currentStartStr || currentEndStr) && !currentPoste) {
              return "Veuillez sélectionner un poste.";
          }
-          // Skip further validation if poste is not selected yet, even if inputs are empty
          if (!currentPoste && !currentStartStr && !currentEndStr) {
              return undefined;
          }
 
-
-        // Basic Validation
         if (startVal === null && currentStartStr !== '' && currentStartStr !== '.' && currentStartStr !== ',') return "Début invalide.";
         if (endVal === null && currentEndStr !== '' && currentEndStr !== '.' && currentEndStr !== ',') return "Fin invalide.";
-        if (startVal === null || endVal === null) return undefined; // Skip further checks if incomplete but parsable so far
+        if (startVal === null || endVal === null) return undefined;
 
         if (endVal < startVal) return "Fin < Début.";
 
-        // Max Duration Check (Per Poste Limit - 8 hours)
         const durationHours = endVal - startVal;
          if (durationHours > MAX_HOURS_PER_POSTE) {
              return `Durée max (${MAX_HOURS_PER_POSTE}h) dépassée (${durationHours.toFixed(2)}h).`;
          }
 
-        // Sequential Validation (based on Poste order: 3ème -> 1er -> 2ème)
-        // Find the counter for the previous logical poste
         let expectedPreviousFinStr: string | undefined | null = undefined;
         let previousPosteName: string = '';
 
-         if (currentPoste === '1er') { // Current is 1er, check against previous day's 3ème
+         if (currentPoste === '1er') {
              expectedPreviousFinStr = previousDayData;
              previousPosteName = "3ème (veille)";
-             if (expectedPreviousFinStr === undefined) expectedPreviousFinStr = null; // Treat undefined prop as skip
-         } else if (currentPoste === '2ème') { // Current is 2ème, check against current day's 1er
+             if (expectedPreviousFinStr === undefined) expectedPreviousFinStr = null;
+         } else if (currentPoste === '2ème') {
              const previousCounter = counters.find(c => c.poste === '1er' && c.id !== counterId);
              expectedPreviousFinStr = previousCounter?.end;
              previousPosteName = "1er";
-         } else if (currentPoste === '3ème') { // Current is 3ème, check against current day's 2ème
+         } else if (currentPoste === '3ème') {
              const previousCounter = counters.find(c => c.poste === '2ème' && c.id !== counterId);
              expectedPreviousFinStr = previousCounter?.end;
              previousPosteName = "2ème";
          }
 
-
-        // Perform the check if an expected previous 'fin' value exists and is valid
         if (expectedPreviousFinStr !== undefined && expectedPreviousFinStr !== null && currentStartStr !== '') {
-             // Check if expectedPreviousFinStr is a valid number representation
              const expectedPreviousFinParsed = validateAndParseCounterValue(expectedPreviousFinStr);
-
             if (expectedPreviousFinParsed === null) {
-                 // console.warn(`Previous counter's 'fin' value (${expectedPreviousFinStr}) is invalid or empty.`);
-                 // Decide if this should be an error or just skip the check
-                 // Option 1: Skip check (allows potentially incorrect start)
-                 // Option 2: Consider it an error (stricter, requires previous value to be valid)
-                 // Let's skip for now, assuming the user will fix the previous entry
+                 // Skip check if previous is invalid
             } else if (startVal !== expectedPreviousFinParsed) {
                  return `Début (${startVal}) doit correspondre à Fin (${expectedPreviousFinParsed}) du ${previousPosteName} Poste.`;
              }
         } else if (expectedPreviousFinStr === null && currentPoste === '1er') {
-             // Previous day data explicitly not available - OK for 1er poste start
+             // OK
          } else if (expectedPreviousFinStr === undefined && currentPoste !== '1er') {
-             // Previous counter in the sequence not found or its 'fin' is empty.
-             // This might be okay if it's the first entry for that sequence (e.g., first 3ème or first 2ème).
-             // We allow it, assuming user might fill out of order.
+             // OK if first entry
          }
-         // else: current 'start' is empty - skip sequence check.
 
-
-        return undefined; // No error
+        return undefined;
    };
 
-
-    // Calculate total counter durations and check for errors whenever counters change
     useEffect(() => {
-        // --- Vibrator Counters ---
         let vibratorValidationPassed = true;
         const newVibratorErrors: Record<string, string> = {};
         const validVibratorCounters = vibratorCounters.filter(c => {
@@ -306,32 +251,22 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
             if (error) {
                 newVibratorErrors[c.id] = error;
                 vibratorValidationPassed = false;
-                return false; // Exclude from total calculation if error
+                return false;
             }
-            return true; // Valid entry for total calculation
+            return true;
         });
-
-        setVibratorCounterErrors(newVibratorErrors); // Update error state
-        setHasVibratorErrors(!vibratorValidationPassed); // Set general error flag
-
+        setVibratorCounterErrors(newVibratorErrors);
+        setHasVibratorErrors(!vibratorValidationPassed);
         const vibratorTotal = calculateTotalCounterMinutes(validVibratorCounters);
         setTotalVibratorMinutes(vibratorTotal);
-
         if (vibratorTotal > TOTAL_PERIOD_MINUTES) {
-             setHasVibratorErrors(true); // Also set error if total exceeds 24h
-             console.warn("Total vibreur duration exceeds 24h period.");
-             // Add a general error message if needed
-             // newVibratorErrors['general'] = 'La durée totale des vibreurs dépasse 24h.';
-             // setVibratorCounterErrors(prev => ({ ...prev, ...newVibratorErrors }));
+             setHasVibratorErrors(true);
         }
 
-
-        // --- Liaison Counters ---
         let liaisonValidationPassed = true;
         const newLiaisonErrors: Record<string, string> = {};
         const validLiaisonCounters = liaisonCounters.filter(c => {
-             // Liaison validation doesn't need previous day data prop for its 1er poste check (uses same-day 3eme)
-             const error = validateCounterEntry(c.id, liaisonCounters, 'liaison', c.start, c.end, c.poste, undefined); // Pass undefined for prev day data
+             const error = validateCounterEntry(c.id, liaisonCounters, 'liaison', c.start, c.end, c.poste, undefined);
               if (error) {
                 newLiaisonErrors[c.id] = error;
                 liaisonValidationPassed = false;
@@ -339,54 +274,37 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
             }
             return true;
         });
-
         setLiaisonCounterErrors(newLiaisonErrors);
         setHasLiaisonErrors(!liaisonValidationPassed);
-
         const liaisonTotal = calculateTotalCounterMinutes(validLiaisonCounters);
         setTotalLiaisonMinutes(liaisonTotal);
-
         if (liaisonTotal > TOTAL_PERIOD_MINUTES) {
-             setHasLiaisonErrors(true); // Set error if total exceeds 24h
-             console.warn("Total liaison duration exceeds 24h period.");
-              // Add a general error message if needed
-             // newLiaisonErrors['general'] = 'La durée totale des liaisons dépasse 24h.';
-             // setLiaisonCounterErrors(prev => ({ ...prev, ...newLiaisonErrors }));
+             setHasLiaisonErrors(true);
         }
+    }, [vibratorCounters, liaisonCounters, previousDayThirdShiftEnd]);
 
-         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [vibratorCounters, liaisonCounters, previousDayThirdShiftEnd]); // Dependencies
-
-
-   // Check for stock entry errors (poste selection)
-   // Calculate hasStockErrors directly based on stockEntries state
     useEffect(() => {
       const activeEntryNeedsPoste = stockEntries.some(entry =>
-          (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste // Consider startTime as well
+          (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste
       );
       setHasStockErrors(activeEntryNeedsPoste);
     }, [stockEntries]);
-
 
   const addStop = () => {
     setStops([...stops, { id: crypto.randomUUID(), duration: "", nature: "" }]);
   };
 
-  // Updated addVibratorCounter to include poste
   const addVibratorCounter = () => {
     setVibratorCounters([...vibratorCounters, { id: crypto.randomUUID(), poste: "", start: "", end: "" }]);
   };
 
-  // Function to add liaison counter - Updated to include poste
   const addLiaisonCounter = () => {
     setLiaisonCounters([...liaisonCounters, { id: crypto.randomUUID(), poste: "", start: "", end: "" }]);
   };
 
-   // Function to add stock entry - includes poste
    const addStockEntry = () => {
         setStockEntries([...stockEntries, { id: crypto.randomUUID(), poste: '', park: '', type: '', quantity: '', startTime: '' }]);
    };
-
 
   const deleteStop = (id: string) => {
     setStops(stops.filter(stop => stop.id !== id));
@@ -394,7 +312,6 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
 
   const deleteVibratorCounter = (id: string) => {
     setVibratorCounters(vibratorCounters.filter(counter => counter.id !== id));
-     // Clean up errors for the deleted counter
      setVibratorCounterErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[id];
@@ -402,10 +319,8 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
       });
   };
 
-   // Function to delete liaison counter
   const deleteLiaisonCounter = (id: string) => {
     setLiaisonCounters(liaisonCounters.filter(counter => counter.id !== id));
-     // Clean up errors for the deleted counter
       setLiaisonCounterErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[id];
@@ -413,113 +328,85 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
       });
   };
 
-  // Function to delete stock entry
   const deleteStockEntry = (id: string) => {
     setStockEntries(stockEntries.filter(entry => entry.id !== id));
   };
 
- // Update field type to exclude hm and ha
  const updateStop = (id: string, field: keyof Omit<Stop, 'id'>, value: string) => {
     setStops(stops.map(stop => stop.id === id ? { ...stop, [field]: value } : stop));
  };
 
-
- // Updated updateVibratorCounter with validation and poste handling
  const updateVibratorCounter = (id: string, field: keyof Omit<Counter, 'id' | 'error'>, value: string) => {
     setVibratorCounters(prevCounters => prevCounters.map(counter => {
         if (counter.id === id) {
             const updatedCounter = { ...counter, [field]: value };
-
-            // Clear specific error for this counter immediately when input changes
             setVibratorCounterErrors(prevErrors => {
                 const newErrors = { ...prevErrors };
-                delete newErrors[id]; // Remove error for this counter
+                delete newErrors[id];
                 return newErrors;
             });
-
-            // The useEffect hook will handle re-validation and updating the error state
             return updatedCounter;
         }
         return counter;
     }));
  };
 
- // Function to update liaison counter with validation and poste handling - Similar to updateVibratorCounter
  const updateLiaisonCounter = (id: string, field: keyof Omit<LiaisonCounter, 'id' | 'error'>, value: string) => {
      setLiaisonCounters(prevCounters => prevCounters.map(counter => {
          if (counter.id === id) {
              const updatedCounter = { ...counter, [field]: value };
-
-             // Clear specific error for this counter immediately
              setLiaisonCounterErrors(prevErrors => {
                  const newErrors = { ...prevErrors };
-                 delete newErrors[id]; // Remove error for this counter
+                 delete newErrors[id];
                  return newErrors;
              });
-
-             // Re-validation happens in useEffect
              return updatedCounter;
          }
          return counter;
     }));
  };
 
-
- // Function to update stock entry - simplified, includes poste
  const updateStockEntry = (id: string, field: keyof Omit<StockEntry, 'id'>, value: string | boolean, parkOrType?: Park | StockType) => {
     setStockEntries(stockEntries.map(entry => {
       if (entry.id === id) {
          const updatedEntry = { ...entry, [field]: value };
-
-         // Reset dependent fields or validate poste
          if (field === 'poste') {
-             updatedEntry.park = ''; // Reset park, type, quantity when poste changes
+             updatedEntry.park = '';
              updatedEntry.type = '';
              updatedEntry.quantity = '';
-             updatedEntry.startTime = ''; // Also reset startTime if applicable?
+             updatedEntry.startTime = '';
          } else if (field === 'park') {
-             updatedEntry.type = ''; // Reset type/quantity when park changes
+             updatedEntry.type = '';
              updatedEntry.quantity = '';
-              updatedEntry.startTime = ''; // Reset start time if park changes
-              // If park is unchecked, clear park field
+              updatedEntry.startTime = '';
               if (value === false) updatedEntry.park = '';
          } else if (field === 'type') {
-            updatedEntry.quantity = ''; // Reset quantity when type changes
-             updatedEntry.startTime = ''; // Reset start time if type changes
-              // If type is unchecked, clear type field
+            updatedEntry.quantity = '';
+             updatedEntry.startTime = '';
               if (value === false) updatedEntry.type = '';
          } else if (field === 'startTime') {
-              // Maybe reset other fields if start time is the primary identifier?
               updatedEntry.park = '';
               updatedEntry.type = '';
               updatedEntry.quantity = '';
-               // If startTime checkbox is unchecked (value becomes false or empty string), clear startTime
               if (!value) updatedEntry.startTime = '';
-               // If startTime checkbox is checked, ensure it has a default or previous value
               else if (typeof value === 'boolean' && value === true) {
-                   // This case is tricky, maybe set to '00:00' or retain previous? Let's retain for now if exists.
                   updatedEntry.startTime = entry.startTime || '00:00';
               } else if (typeof value === 'string') {
-                   updatedEntry.startTime = value; // Update with the time input value
+                   updatedEntry.startTime = value;
               }
          }
-
          return updatedEntry;
       }
       return entry;
     }));
   };
 
-  // Handle form submission - Prevent if counter or stock errors exist
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Explicitly check the general error flags which are updated by useEffect
      if (hasVibratorErrors || hasLiaisonErrors || hasStockErrors) {
-        console.error("Validation failed: Invalid inputs detected in counters or stock.");
+        console.error("Validation failed: Invalid inputs detected.");
         toast({ title: "Erreur de Validation", description: "Veuillez corriger les erreurs dans les formulaires.", variant: "destructive" });
-
-        // Focus the first input with an error
+        // Focus logic remains the same
         const firstErrorIdVibrator = Object.keys(vibratorCounterErrors).find(id => vibratorCounterErrors[id]);
         if (firstErrorIdVibrator) {
             const el = document.getElementById(`vibrator-poste-trigger-${firstErrorIdVibrator}`) ||
@@ -541,45 +428,38 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
              document.getElementById(`stock-poste-trigger-${firstStockErrorEntry.id}`)?.focus();
              return;
          }
-        return; // Stop submission
+        return;
     }
-
-    // If validation passes, proceed with submission logic
     console.log("Submitting Activity Report:", {
         stops,
-        vibratorCounters, // Submit validated counters
-        liaisonCounters, // Submit validated counters
-        stockEntries, // Submit validated stock entries
+        vibratorCounters,
+        liaisonCounters,
+        stockEntries,
         totalDowntime,
         operatingTime,
-        totalVibratorMinutes, // Submit calculated totals
-        totalLiaisonMinutes, // Submit calculated totals
+        totalVibratorMinutes,
+        totalLiaisonMinutes,
     });
     toast({ title: "Succès", description: "Rapport soumis avec succès." });
-    // TODO: Replace console.log with actual API call or state management update
-    // e.g., await submitActivityReport({ ... });
   };
 
-
   return (
-    <Card className="bg-card text-card-foreground rounded-lg shadow-md p-6 mb-6">
+    <Card className="bg-card text-card-foreground rounded-lg shadow-md p-4 sm:p-6 mb-6">
       <CardHeader className="flex flex-row justify-between items-center pb-4 space-y-0 border-b mb-6">
-        <CardTitle className="text-xl font-bold">
+        <CardTitle className="text-lg sm:text-xl font-bold">
           RAPPORT D'ACTIVITÉ TNR
         </CardTitle>
-        {/* Display the formatted date from the prop */}
-        <span className="text-sm text-muted-foreground">{formattedDate}</span>
+        <span className="text-xs sm:text-sm text-muted-foreground">{formattedDate}</span>
       </CardHeader>
 
-      {/* Wrap content in a form */}
        <form onSubmit={handleSubmit}>
-            <CardContent className="p-0 space-y-6"> {/* Added space-y-6 */}
+            <CardContent className="p-0 space-y-6">
 
                 {/* Arrêts Section */}
-                <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
+                <div className="space-y-4 p-4 border rounded-lg bg-card">
                     <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-lg text-foreground">Arrêts</h3>
-                        <Button variant="link" type="button" onClick={addStop} className="text-primary text-sm p-0 h-auto">
+                        <h3 className="font-semibold text-base sm:text-lg text-foreground">Arrêts</h3>
+                        <Button variant="link" type="button" onClick={addStop} className="text-primary text-xs sm:text-sm p-0 h-auto">
                             <Plus className="h-4 w-4 mr-1" /> Ajouter Arrêt
                         </Button>
                     </div>
@@ -588,22 +468,22 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[120px]">
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
                                     Durée (ex: 1h 30)
                                 </TableHead>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[150px]">
                                     Nature
                                 </TableHead>
-                                <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                                <TableHead className="p-2 text-right text-xs sm:text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {stops.map((stop) => (
                                 <TableRow key={stop.id} className="hover:bg-muted/50">
-                                    <TableCell className="p-2">
+                                    <TableCell className="p-1 sm:p-2">
                                     <Input
                                         type="text"
-                                        className="w-full h-8 text-sm" // w-24 removed -> w-full
+                                        className="w-full h-8 text-xs sm:text-sm"
                                         placeholder="ex: 1h 30"
                                         value={stop.duration}
                                         onChange={(e) =>
@@ -611,23 +491,23 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         }
                                     />
                                     </TableCell>
-                                    <TableCell className="p-2">
+                                    <TableCell className="p-1 sm:p-2">
                                     <Input
                                         type="text"
-                                        className="w-full h-8 text-sm"
+                                        className="w-full h-8 text-xs sm:text-sm"
                                         value={stop.nature}
                                         onChange={(e) =>
                                         updateStop(stop.id, "nature", e.target.value)
                                         }
                                     />
                                     </TableCell>
-                                    <TableCell className="p-2 text-right">
+                                    <TableCell className="p-1 sm:p-2 text-right">
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        type="button" // Prevent form submission
+                                        type="button"
                                         onClick={() => deleteStop(stop.id)}
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 flex-shrink-0"
                                     >
                                         <Trash className="h-4 w-4" />
                                         <span className="sr-only">Supprimer</span>
@@ -637,7 +517,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                 ))}
                                 {stops.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4">
+                                        <TableCell colSpan={3} className="text-center text-muted-foreground p-4 text-xs sm:text-sm">
                                             Aucun arrêt ajouté.
                                         </TableCell>
                                     </TableRow>
@@ -645,38 +525,36 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                             </TableBody>
                         </Table>
                     </div>
-                    <div className="mt-2 text-right text-sm text-muted-foreground">
+                    <div className="mt-2 text-right text-xs sm:text-sm text-muted-foreground">
                         Total Arrêts: <strong>{formatMinutesToHoursMinutes(totalDowntime)}</strong>
                     </div>
                 </div>
 
                 {/* Operating Time Display */}
                 <div className="p-4 border rounded-lg bg-muted/30">
-                    {/* Updated Label */}
-                    <h3 className="font-semibold text-lg text-foreground mb-2">Temps de Fonctionnement (24h - Arrêts)</h3>
+                    <h3 className="font-semibold text-base sm:text-lg text-foreground mb-2">Temps de Fonctionnement (24h - Arrêts)</h3>
                     <div className="space-y-1">
-                        <Label htmlFor="total-operating-tnr" className="text-sm text-muted-foreground">
+                        <Label htmlFor="total-operating-tnr" className="text-xs sm:text-sm text-muted-foreground">
                             Temps de Fonctionnement Estimé
                         </Label>
-                        <Input id="total-operating-tnr" type="text" value={formatMinutesToHoursMinutes(operatingTime)} className="h-9 bg-input font-medium" readOnly tabIndex={-1}/>
+                        <Input id="total-operating-tnr" type="text" value={formatMinutesToHoursMinutes(operatingTime)} className="h-8 sm:h-9 bg-input font-medium text-sm" readOnly tabIndex={-1}/>
                     </div>
                 </div>
 
 
                 {/* Compteurs Vibreurs Section */}
-                <div className="space-y-4 p-4 border rounded-lg bg-card"> {/* Replaced mb-6 and added styling */}
+                <div className="space-y-4 p-4 border rounded-lg bg-card">
                     <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-lg text-foreground">Compteurs Vibreurs</h3>
-                        <Button variant="link" type="button" className="text-primary text-sm p-0 h-auto" onClick={addVibratorCounter}>
+                        <h3 className="font-semibold text-base sm:text-lg text-foreground">Compteurs Vibreurs</h3>
+                        <Button variant="link" type="button" className="text-primary text-xs sm:text-sm p-0 h-auto" onClick={addVibratorCounter}>
                             <Plus className="h-4 w-4 mr-1" /> Ajouter Vibreur
                         </Button>
                     </div>
-                    {/* General Error Alert for Vibrator Counters */}
                     {hasVibratorErrors && (
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
-                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste, Total ≤ 24h). {/* Updated error message */}
+                            <AlertDescription className="text-xs sm:text-sm">
+                                Erreur(s) dans les compteurs vibreurs. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste, Total ≤ 24h).
                             </AlertDescription>
                         </Alert>
                     )}
@@ -684,27 +562,27 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]"> {/* Added width */}
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[130px]">
                                     Poste
                                 </TableHead>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
                                     Début (ex: 9341.0)
                                 </TableHead>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
                                     Fin (ex: 9395.3)
                                 </TableHead>
-                                <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                                <TableHead className="p-2 text-right text-xs sm:text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {vibratorCounters.map((counter) => (
                                 <TableRow key={counter.id} className="hover:bg-muted/50">
-                                     <TableCell className="p-2"> {/* Cell for Poste Select */}
+                                     <TableCell className="p-1 sm:p-2">
                                         <Select
                                             value={counter.poste}
                                             onValueChange={(value: Poste) => updateVibratorCounter(counter.id, "poste", value)}
                                             >
-                                            <SelectTrigger id={`vibrator-poste-trigger-${counter.id}`} className={cn("h-8 text-sm", vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectTrigger id={`vibrator-poste-trigger-${counter.id}`} className={cn("h-8 text-xs sm:text-sm", vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
                                                 <SelectValue placeholder="Sélectionner" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -717,12 +595,12 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         </Select>
                                          {vibratorCounterErrors[counter.id]?.includes("poste") && <p className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p>}
                                     </TableCell>
-                                    <TableCell className="p-2">
+                                    <TableCell className="p-1 sm:p-2">
                                     <Input
-                                        id={`vibrator-start-${counter.id}`} // Add ID for focusing
-                                        type="text" // Use text to allow different formats initially
-                                        inputMode="decimal" // Hint for mobile keyboards
-                                        className={cn("w-full h-8 text-sm", vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        id={`vibrator-start-${counter.id}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        className={cn("w-full h-8 text-xs sm:text-sm", vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.start}
                                         placeholder="Index début"
                                         onChange={(e) =>
@@ -733,12 +611,12 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                     />
                                      {vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && <p id={`error-vibrator-${counter.id}`} className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p>}
                                     </TableCell>
-                                    <TableCell className="p-2">
+                                    <TableCell className="p-1 sm:p-2">
                                     <Input
-                                        id={`vibrator-end-${counter.id}`} // Add ID for focusing
-                                        type="text" // Use text to allow different formats initially
+                                        id={`vibrator-end-${counter.id}`}
+                                        type="text"
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-xs sm:text-sm", vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.end}
                                         placeholder="Index fin"
                                         onChange={(e) =>
@@ -747,16 +625,15 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                          aria-invalid={!!vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste")}
                                          aria-describedby={vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") ? `error-vibrator-${counter.id}-end` : undefined}
                                     />
-                                    {/* Display error inline only if error exists and is NOT related to poste selection */}
                                     {vibratorCounterErrors[counter.id] && !vibratorCounterErrors[counter.id]?.includes("poste") ? <p id={`error-vibrator-${counter.id}-end`} className="text-xs text-destructive pt-1">{vibratorCounterErrors[counter.id]}</p> : null}
                                     </TableCell>
-                                    <TableCell className="p-2 text-right">
+                                    <TableCell className="p-1 sm:p-2 text-right">
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        type="button" // Prevent form submission
+                                        type="button"
                                         onClick={() => deleteVibratorCounter(counter.id)}
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 flex-shrink-0"
                                     >
                                         <Trash className="h-4 w-4" />
                                         <span className="sr-only">Supprimer</span>
@@ -766,7 +643,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                 ))}
                                 {vibratorCounters.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4 text-xs sm:text-sm">
                                             Aucun compteur vibreur ajouté.
                                         </TableCell>
                                     </TableRow>
@@ -774,8 +651,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                             </TableBody>
                         </Table>
                     </div>
-                    {/* Display Total Vibreur Duration */}
-                    <div className="mt-2 text-right text-sm text-muted-foreground">
+                    <div className="mt-2 text-right text-xs sm:text-sm text-muted-foreground">
                         Durée Totale Vibreurs: <strong>{formatMinutesToHoursMinutes(totalVibratorMinutes)}</strong>
                     </div>
                 </div>
@@ -783,17 +659,16 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                 {/* Compteurs LIAISON Section */}
                 <div className="space-y-4 p-4 border rounded-lg bg-card">
                     <div className="flex justify-between items-center">
-                        <h3 className="font-semibold text-lg text-foreground">Compteurs LIAISON</h3>
-                        <Button variant="link" type="button" className="text-primary text-sm p-0 h-auto" onClick={addLiaisonCounter}>
+                        <h3 className="font-semibold text-base sm:text-lg text-foreground">Compteurs LIAISON</h3>
+                        <Button variant="link" type="button" className="text-primary text-xs sm:text-sm p-0 h-auto" onClick={addLiaisonCounter}>
                             <Plus className="h-4 w-4 mr-1" /> Ajouter Liaison
                         </Button>
                     </div>
-                     {/* General Error Alert for Liaison Counters */}
                      {hasLiaisonErrors && (
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
-                             <AlertDescription>
-                                Erreur(s) dans les compteurs liaison. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste, Total ≤ 24h). {/* Updated error message */}
+                             <AlertDescription className="text-xs sm:text-sm">
+                                Erreur(s) dans les compteurs liaison. Vérifiez les postes, la continuité et les valeurs (Fin ≥ Début, Durée max {MAX_HOURS_PER_POSTE}h/poste, Total ≤ 24h).
                             </AlertDescription>
                         </Alert>
                     )}
@@ -801,27 +676,27 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                         <Table>
                             <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                 <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]"> {/* Added width */}
+                                 <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[130px]">
                                     Poste
                                 </TableHead>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
                                     Début (ex: 100.5)
                                 </TableHead>
-                                <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">
+                                <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">
                                     Fin (ex: 105.75)
                                 </TableHead>
-                                <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                                <TableHead className="p-2 text-right text-xs sm:text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {liaisonCounters.map((counter) => (
                                 <TableRow key={counter.id} className="hover:bg-muted/50">
-                                     <TableCell className="p-2"> {/* Cell for Poste Select */}
+                                     <TableCell className="p-1 sm:p-2">
                                         <Select
                                             value={counter.poste}
                                             onValueChange={(value: Poste) => updateLiaisonCounter(counter.id, "poste", value)}
                                             >
-                                            <SelectTrigger id={`liaison-poste-trigger-${counter.id}`} className={cn("h-8 text-sm", liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
+                                            <SelectTrigger id={`liaison-poste-trigger-${counter.id}`} className={cn("h-8 text-xs sm:text-sm", liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}>
                                                 <SelectValue placeholder="Sélectionner" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -834,12 +709,12 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         </Select>
                                          {liaisonCounterErrors[counter.id]?.includes("poste") && <p className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p>}
                                     </TableCell>
-                                    <TableCell className="p-2">
+                                    <TableCell className="p-1 sm:p-2">
                                     <Input
-                                        id={`liaison-start-${counter.id}`} // Add ID
-                                        type="text" // Use text to allow different formats initially
+                                        id={`liaison-start-${counter.id}`}
+                                        type="text"
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-xs sm:text-sm", liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.start}
                                         placeholder="Index début"
                                         onChange={(e) =>
@@ -850,12 +725,12 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                     />
                                     {liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && <p id={`error-liaison-${counter.id}`} className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p>}
                                     </TableCell>
-                                    <TableCell className="p-2">
+                                    <TableCell className="p-1 sm:p-2">
                                     <Input
-                                        id={`liaison-end-${counter.id}`} // Add ID
-                                        type="text" // Use text to allow different formats initially
+                                        id={`liaison-end-${counter.id}`}
+                                        type="text"
                                         inputMode="decimal"
-                                        className={cn("w-full h-8 text-sm", liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
+                                        className={cn("w-full h-8 text-xs sm:text-sm", liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") && "border-destructive focus-visible:ring-destructive")}
                                         value={counter.end}
                                         placeholder="Index fin"
                                         onChange={(e) =>
@@ -864,16 +739,15 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                         aria-invalid={!!liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste")}
                                         aria-describedby={liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") ? `error-liaison-${counter.id}-end` : undefined}
                                     />
-                                     {/* Display error inline only if error exists and is NOT related to poste selection */}
                                      {liaisonCounterErrors[counter.id] && !liaisonCounterErrors[counter.id]?.includes("poste") ? <p id={`error-liaison-${counter.id}-end`} className="text-xs text-destructive pt-1">{liaisonCounterErrors[counter.id]}</p> : null }
                                     </TableCell>
-                                    <TableCell className="p-2 text-right">
+                                    <TableCell className="p-1 sm:p-2 text-right">
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        type="button" // Prevent form submission
+                                        type="button"
                                         onClick={() => deleteLiaisonCounter(counter.id)}
-                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 flex-shrink-0"
                                     >
                                         <Trash className="h-4 w-4" />
                                         <span className="sr-only">Supprimer</span>
@@ -883,7 +757,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                 ))}
                                 {liaisonCounters.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground p-4 text-xs sm:text-sm">
                                             Aucun compteur liaison ajouté.
                                         </TableCell>
                                     </TableRow>
@@ -891,26 +765,24 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                             </TableBody>
                         </Table>
                     </div>
-                    {/* Display Total Liaison Duration */}
-                    <div className="mt-2 text-right text-sm text-muted-foreground">
+                    <div className="mt-2 text-right text-xs sm:text-sm text-muted-foreground">
                         Durée Totale Liaison: <strong>{formatMinutesToHoursMinutes(totalLiaisonMinutes)}</strong>
                     </div>
                 </div>
 
 
-                {/* Stock Section - Simplified */}
+                {/* Stock Section */}
                 <div className="space-y-4 p-4 border rounded-lg bg-card">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-lg text-foreground">Stock</h3>
-                        <Button variant="link" type="button" className="text-primary text-sm p-0 h-auto" onClick={addStockEntry}>
+                        <h3 className="font-semibold text-base sm:text-lg text-foreground">Stock</h3>
+                        <Button variant="link" type="button" className="text-primary text-xs sm:text-sm p-0 h-auto" onClick={addStockEntry}>
                         <Plus className="h-4 w-4 mr-1" /> Ajouter Entrée Stock
                         </Button>
                     </div>
-                     {/* General Error Alert for Stock */}
                     {hasStockErrors && (
                         <Alert variant="destructive" className="mt-2">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
+                            <AlertDescription className="text-xs sm:text-sm">
                                 Erreur(s) dans les entrées de stock. Veuillez sélectionner un poste pour chaque entrée active.
                             </AlertDescription>
                         </Alert>
@@ -920,26 +792,24 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                         <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">Poste</TableHead>{/* Added Poste Head */}
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[150px]">PARK</TableHead>
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground w-[250px]">Type Produit / Info</TableHead>{/* Merged Type/Time */}
-                            <TableHead className="p-2 text-left text-sm font-medium text-muted-foreground">Quantité / Heure</TableHead>{/* Merged Quantity/Time */}
-                            <TableHead className="p-2 text-right text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
+                            <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[130px]">Poste</TableHead>
+                            <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">PARK</TableHead>
+                            <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[180px]">Type Produit / Info</TableHead>
+                            <TableHead className="p-2 text-left text-xs sm:text-sm font-medium text-muted-foreground min-w-[120px]">Quantité / Heure</TableHead>
+                            <TableHead className="p-2 text-right text-xs sm:text-sm font-medium text-muted-foreground w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {stockEntries.map((entry) => {
-                                // Calculate error dynamically for each entry
                                 const entryError = (entry.park || entry.type || entry.quantity || entry.startTime) && !entry.poste ? "Veuillez sélectionner un poste." : undefined;
                                 return (
                                     <TableRow key={entry.id} className="hover:bg-muted/50">
-                                        {/* Poste Selection Cell */}
-                                        <TableCell className="p-2 align-top">
+                                        <TableCell className="p-1 sm:p-2 align-top">
                                             <Select
                                                 value={entry.poste}
                                                 onValueChange={(value: Poste) => updateStockEntry(entry.id, "poste", value)}
                                             >
-                                                <SelectTrigger id={`stock-poste-trigger-${entry.id}`} className={cn("h-8 text-sm w-[130px]", entryError && "border-destructive focus-visible:ring-destructive")}>
+                                                <SelectTrigger id={`stock-poste-trigger-${entry.id}`} className={cn("h-8 text-xs sm:text-sm min-w-[110px]", entryError && "border-destructive focus-visible:ring-destructive")}>
                                                     <SelectValue placeholder="Poste" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -952,84 +822,75 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                                             </Select>
                                             {entryError && <p className="text-xs text-destructive pt-1">{entryError}</p>}
                                         </TableCell>
-                                        {/* Park Checkboxes */}
-                                        <TableCell className="p-2 align-top">
+                                        <TableCell className="p-1 sm:p-2 align-top">
                                         <div className="space-y-2">
                                             {PARKS.map(park => (
                                             <div key={park} className="flex items-center space-x-2">
                                                 <Checkbox
                                                 id={`${entry.id}-${park}`}
                                                 checked={entry.park === park}
-                                                disabled={!entry.poste} // Disable if no poste selected
-                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : false, park)} // Pass false to clear
+                                                disabled={!entry.poste}
+                                                onCheckedChange={(checked) => updateStockEntry(entry.id, 'park', checked ? park : false, park)}
                                                 />
-                                                <Label htmlFor={`${entry.id}-${park}`} className={`font-normal text-sm ${!entry.poste ? 'text-muted-foreground' : ''}`}>{park}</Label>
+                                                <Label htmlFor={`${entry.id}-${park}`} className={`font-normal text-xs sm:text-sm ${!entry.poste ? 'text-muted-foreground' : ''}`}>{park}</Label>
                                             </div>
                                             ))}
                                         </div>
                                         </TableCell>
-                                        {/* Type / Start Time Checkboxes */}
-                                        <TableCell className="p-2 align-top">
+                                        <TableCell className="p-1 sm:p-2 align-top">
                                             <div className="space-y-2">
-                                                {/* Product Types */}
                                                 {STOCK_TYPES.map(type => (
                                                 <div key={type} className="flex items-center space-x-2">
                                                     <Checkbox
                                                     id={`${entry.id}-${type}`}
                                                     checked={entry.type === type}
-                                                    disabled={!entry.poste || !entry.park || !!entry.startTime} // Disable if no poste/park or if startTime is checked
-                                                    onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : false, type)} // Pass false to clear
+                                                    disabled={!entry.poste || !entry.park || !!entry.startTime}
+                                                    onCheckedChange={(checked) => updateStockEntry(entry.id, 'type', checked ? type : false, type)}
                                                     />
-                                                    <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-sm ${!entry.poste || !entry.park || !!entry.startTime ? 'text-muted-foreground' : ''}`}>{type}</Label>
+                                                    <Label htmlFor={`${entry.id}-${type}`} className={`font-normal text-xs sm:text-sm ${!entry.poste || !entry.park || !!entry.startTime ? 'text-muted-foreground' : ''}`}>{type}</Label>
                                                 </div>
                                                 ))}
-                                                {/* HEURE DEBUT STOCK */}
                                                  <div key={STOCK_TIME_LABEL} className="flex items-center space-x-2">
                                                     <Checkbox
                                                         id={`${entry.id}-startTime`}
-                                                        // Check if startTime has a value to determine checked state
                                                         checked={!!entry.startTime}
-                                                        disabled={!entry.poste || !!entry.park || !!entry.type} // Disable if no poste or if park/type is selected
-                                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'startTime', checked ? (entry.startTime || '00:00') : false, undefined)} // Pass false to clear
+                                                        disabled={!entry.poste || !!entry.park || !!entry.type}
+                                                        onCheckedChange={(checked) => updateStockEntry(entry.id, 'startTime', checked ? (entry.startTime || '00:00') : false, undefined)}
                                                     />
-                                                    <Label htmlFor={`${entry.id}-startTime`} className={`font-normal text-sm ${!entry.poste || !!entry.park || !!entry.type ? 'text-muted-foreground' : ''}`}>{STOCK_TIME_LABEL}</Label>
+                                                    <Label htmlFor={`${entry.id}-startTime`} className={`font-normal text-xs sm:text-sm ${!entry.poste || !!entry.park || !!entry.type ? 'text-muted-foreground' : ''}`}>{STOCK_TIME_LABEL}</Label>
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        {/* Quantity / Time Input */}
-                                        <TableCell className="p-2 align-top">
-                                            {/* Show Quantity input only if a type is selected */}
+                                        <TableCell className="p-1 sm:p-2 align-top">
                                             {entry.type && (
                                                 <Input
                                                     type="number"
-                                                    step="0.01" // Allow decimals
+                                                    step="0.01"
                                                     min="0"
-                                                    className="w-full h-8 text-sm mt-1" // Align with checkboxes
+                                                    className="w-full h-8 text-xs sm:text-sm mt-1"
                                                     placeholder="Quantité"
                                                     value={entry.quantity}
-                                                    disabled={!entry.poste || !entry.type} // Disable if no poste or type selected
+                                                    disabled={!entry.poste || !entry.type}
                                                     onChange={(e) => updateStockEntry(entry.id, "quantity", e.target.value)}
                                                 />
                                             )}
-                                            {/* Show Time input only if startTime checkbox is checked */}
                                             {!!entry.startTime && (
                                                  <Input
                                                     type="time"
-                                                    className="w-full h-8 text-sm mt-1" // Align with checkboxes
+                                                    className="w-full h-8 text-xs sm:text-sm mt-1"
                                                     value={entry.startTime}
-                                                    disabled={!entry.poste || !!entry.park || !!entry.type} // Disable if no poste or park/type selected
+                                                    disabled={!entry.poste || !!entry.park || !!entry.type}
                                                     onChange={(e) => updateStockEntry(entry.id, "startTime", e.target.value)}
                                                 />
                                             )}
                                         </TableCell>
-                                        {/* Delete Button */}
-                                        <TableCell className="p-2 text-right align-top">
+                                        <TableCell className="p-1 sm:p-2 text-right align-top">
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            type="button" // Prevent form submission
+                                            type="button"
                                             onClick={() => deleteStockEntry(entry.id)}
-                                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 mt-1" // Align with checkboxes
+                                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 mt-1 flex-shrink-0"
                                         >
                                             <Trash className="h-4 w-4" />
                                             <span className="sr-only">Supprimer</span>
@@ -1040,7 +901,7 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
                             })}
                             {stockEntries.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center text-muted-foreground p-4"> {/* Updated colSpan */}
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground p-4 text-xs sm:text-sm">
                                         Aucune entrée de stock ajoutée.
                                     </TableCell>
                                 </TableRow>
@@ -1052,11 +913,11 @@ export function ActivityReport({ selectedDate, previousDayThirdShiftEnd = null }
 
 
                 {/* Action Buttons */}
-                <div className="mt-8 flex justify-end space-x-3"> {/* Added margin-top */}
-                    <Button type="button" variant="outline">Enregistrer Brouillon</Button> {/* Changed to type="button" */}
-                    <Button type="submit" disabled={hasVibratorErrors || hasLiaisonErrors || hasStockErrors}> {/* Disable submit if errors */}
+                <div className="mt-8 flex justify-end space-x-2 sm:space-x-3">
+                    <Button type="button" variant="outline" size="sm">Enregistrer Brouillon</Button>
+                    <Button type="submit" size="sm" disabled={hasVibratorErrors || hasLiaisonErrors || hasStockErrors}>
                         Soumettre Rapport
-                    </Button> {/* Disable submit if errors */}
+                    </Button>
                 </div>
             </CardContent>
         </form>
