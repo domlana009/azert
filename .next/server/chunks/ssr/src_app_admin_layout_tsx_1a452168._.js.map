@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file:///home/user/studio/src/app/admin/layout.tsx"],"sourcesContent":["\nimport React from 'react';\n\nexport default function AdminLayout({\n  children,\n}: {\n  children: React.ReactNode;\n}) {\n  // Basic layout, can be expanded with admin sidebar, header, etc.\n  return (\n    <div>\n      {/* Potential Admin Header */}\n      <main>{children}</main>\n      {/* Potential Admin Footer */}\n    </div>\n  );\n}\n"],"names":[],"mappings":";;;;;AAGe,SAAS,YAAY,EAClC,QAAQ,EAGT;IACC,iEAAiE;IACjE,qBACE,8OAAC;kBAEC,cAAA,8OAAC;sBAAM;;;;;;;;;;;AAIb","debugId":null}}]
+}

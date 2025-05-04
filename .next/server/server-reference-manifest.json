@@ -1,0 +1,72 @@
+{
+  "node": {
+    "006b1d78a5ad739e8e069569f19c48edace7cf0b73": {
+      "workers": {
+        "app/admin/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/list-users.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/actions/set-user-role.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/src/actions/toggle-user-status.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE3 => \"[project]/src/actions/delete-user.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE4 => \"[project]/src/actions/set-user-permissions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/page": "action-browser"
+      }
+    },
+    "608e1289a4990a08598361f2002fe761c8fb280bac": {
+      "workers": {
+        "app/admin/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/list-users.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/actions/set-user-role.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/src/actions/toggle-user-status.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE3 => \"[project]/src/actions/delete-user.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE4 => \"[project]/src/actions/set-user-permissions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/page": "action-browser"
+      }
+    },
+    "60777149fa00a297b4036514b0bbcdad65bb07272c": {
+      "workers": {
+        "app/admin/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/list-users.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/actions/set-user-role.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/src/actions/toggle-user-status.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE3 => \"[project]/src/actions/delete-user.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE4 => \"[project]/src/actions/set-user-permissions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/page": "action-browser"
+      }
+    },
+    "406c787133dba9542061b5c4060a2268b8f770bbf5": {
+      "workers": {
+        "app/admin/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/list-users.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/actions/set-user-role.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/src/actions/toggle-user-status.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE3 => \"[project]/src/actions/delete-user.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE4 => \"[project]/src/actions/set-user-permissions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/page": "action-browser"
+      }
+    },
+    "607756e443c07ddccbd29d4809de895c62f507369c": {
+      "workers": {
+        "app/admin/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/list-users.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE1 => \"[project]/src/actions/set-user-role.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE2 => \"[project]/src/actions/toggle-user-status.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE3 => \"[project]/src/actions/delete-user.ts [app-rsc] (ecmascript)\", ACTIONS_MODULE4 => \"[project]/src/actions/set-user-permissions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/page": "action-browser"
+      }
+    },
+    "40554d47e8d6b673b1b420820804180861d9155920": {
+      "workers": {
+        "app/admin/create-user/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/create-user/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/create-user.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/create-user/page": "action-browser"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "UUZfbKIeVVkkqfHJOXr8Q1Wgi03BmY6Ed50+pbGbjGo="
+}

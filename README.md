@@ -28,8 +28,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   **(Optional but helpful):** Note your Project ID from Project Settings.
 
 4.  **Set up Firebase Admin SDK Credentials (for Server-Side Actions):**
-    *   **Requirement:** You need valid service account credentials for server-side operations (like user creation/management). Choose **ONE** method below. **Failure to configure this correctly will cause server-side errors like "Firebase Admin SDK access failed..." or "Firebase Admin SDK could not be initialized...".**
-    *   **Method 1 (Recommended for Deployment & Security): Environment Variable**
+    *   **Requirement:** You need valid service account credentials for server-side operations (like user creation/management). Choose **ONE** method below. **Failure to configure this correctly will cause server-side errors like "Firebase Admin SDK access failed..." or "Firebase Admin SDK could not be initialized...".** The following methods will help you setup.
         *   Go to your Firebase Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file containing your service account key will download.
         *   **Important:** Open the downloaded JSON file. **Copy its ENTIRE content.** The content MUST be valid JSON and typically starts with `{"type": "service_account", ...}` including `project_id`, `private_key`, and `client_email`.

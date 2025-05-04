@@ -1,0 +1,16 @@
+{
+  "node": {
+    "40554d47e8d6b673b1b420820804180861d9155920": {
+      "workers": {
+        "app/admin/create-user/page": {
+          "moduleId": "[project]/.next-internal/server/app/admin/create-user/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/actions/create-user.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/admin/create-user/page": "action-browser"
+      }
+    }
+  },
+  "edge": {}
+}
