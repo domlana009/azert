@@ -28,7 +28,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
     *   **(Optional but helpful):** Note your Project ID from Project Settings.
 
 4.  **Set up Firebase Admin SDK Credentials (for Server-Side Actions):**
-    *   **Requirement:** You need valid service account credentials for server-side operations (like user creation/management). Choose **ONE** method below. **Failure to configure this correctly will cause server-side errors.**
+    *   **Requirement:** You need valid service account credentials for server-side operations (like user creation/management). Choose **ONE** method below. **Failure to configure this correctly will cause server-side errors like "Firebase Admin SDK access failed..." or "Firebase Admin SDK could not be initialized...".**
     *   **Method 1 (Recommended for Deployment & Security): Environment Variable**
         *   Go to your Firebase Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file containing your service account key will download.
@@ -39,22 +39,27 @@ This is a Next.js application for daily job reporting using Firebase for authent
             *   **Local `.env` file:** You can add `FIREBASE_SERVICE_ACCOUNT_KEY='{...}'` to your `.env` file (or preferably `.env.local`), replacing `{...}` with the *single-line* JSON content. Be **extremely careful** not to commit this file if it contains the actual key. Using `.env.local` (which is typically gitignored) is safer. Ensure the JSON is valid.
             ```dotenv
             # Example for .env.local (MAKE SURE THIS FILE IS IN .gitignore)
+            # Ensure the JSON is valid and contains "project_id", "private_key", "client_email"
             FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", "project_id": "your-project-id", ...}'
             ```
-    *   **Method 2 (Easier for Local Development, Use with Caution): Local File**
+        *   **If using this method, ensure the `FIREBASE_SERVICE_ACCOUNT_KEY` line in your `.env` file is uncommented and correctly set, AND that the local file (`reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json`) is either deleted or its corresponding `FIREBASE_SERVICE_ACCOUNT_KEY` line in `.env` is commented out/empty.** The environment variable takes precedence if set and valid.
+    *   **Method 2 (Easier for Local Development, Default Setup): Local File**
         *   Go to your Firebase Project Settings > Service accounts.
         *   Click "Generate new private key" and confirm. A JSON file will download.
         *   Rename the downloaded file to **exactly** `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json`.
-        *   Place this `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` file in the **root directory** of your project (the same level as `package.json`).
-        *   Ensure the file content is the complete, valid JSON provided by Firebase.
+        *   Place this `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` file in the **project root directory** (the same level as `package.json`).
+        *   **Verify Content:** Ensure the file content is the complete, valid JSON provided by Firebase (it should start with `{ "type": "service_account", ... }` and include `project_id`, `private_key`, `client_email`). An empty or incomplete file will cause errors.
         *   **CRITICAL:** Add `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` to your `.gitignore` file **immediately** to prevent accidentally committing your secret key to version control.
         ```gitignore
         # .gitignore
         reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json
         .env.local
         .env.*.local
+        node_modules
+        .next
         ```
-    *   **Verification:** When the server starts, check the console logs. Look for messages like "Firebase Admin SDK: Initialization successful..." or errors indicating problems reading/parsing credentials. The server log will indicate if it used the environment variable or the local file.
+        *   **If using this method, ensure the `FIREBASE_SERVICE_ACCOUNT_KEY` line in your `.env` file is commented out or empty.**
+    *   **Verification:** When the server starts (e.g., `npm run dev`), check the **server console logs** (not the browser console). Look for messages like "Firebase Admin SDK: Initialization successful..." or errors indicating problems reading/parsing credentials (e.g., "CRITICAL - No valid service account credentials found...", "CRITICAL - Failed to parse..."). The server log will indicate if it used the environment variable or the local file.
 
 5.  **Configure Client-Side Environment Variables:**
     *   Create a file named `.env` in the root of your project (if it doesn't exist). You can copy `.env.example` if provided.
@@ -70,21 +75,20 @@ This is a Next.js application for daily job reporting using Firebase for authent
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=228045181413
         NEXT_PUBLIC_FIREBASE_APP_ID=1:228045181413:web:600fcac96998fed7c35f0c
         NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
-        NEXT_PUBLIC_FIREBASE_DYNAMIC_LINKS_API_KEY=AIzaSyAbjvD-BEdzhaZzIw2AYnMYNQL8egjn_Xw # Seems unused, but included
+        NEXT_PUBLIC_FIREBASE_DYNAMIC_LINKS_API_KEY=AIzaSyAbjvD-BEdzhaZzIw2AYnMYNQL8egjn_Xw
 
         # --- Genkit / Google AI (Optional) ---
         GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_AI_API_KEY # Add if using Genkit
 
         # --- Server-Side Admin SDK (Choose Method 1 OR Method 2 from Step 4) ---
         # Method 1: Environment Variable (Paste the FULL JSON content here or set in deployment environment)
-        # Ensure it's a single line if pasting directly into .env / .env.local
-        # If using Method 1, leave this line uncommented and paste the JSON string.
-        # FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"reportzen-mixd3", ...}'
+        # If using Method 1, uncomment this line and paste the JSON string. Comment out/empty the local file method setup.
+        # FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account", ...}'
 
-        # Method 2: Local File (Leave FIREBASE_SERVICE_ACCOUNT_KEY commented out or remove it if using the local file)
-        # Ensure the file is named 'reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json' and placed in the project root.
-        # If using Method 2, keep this line commented out or remove it.
-        FIREBASE_SERVICE_ACCOUNT_KEY=""
+        # Method 2: Local File (Default for local development)
+        # Ensure 'reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json' is in the project root and contains valid JSON.
+        # Keep FIREBASE_SERVICE_ACCOUNT_KEY commented out or empty if using the local file.
+        # FIREBASE_SERVICE_ACCOUNT_KEY=""
 
         # --- Admin User Identification ---
         # Option 1 (Simpler): Set this to the UID of the user you manually create as admin in Step 6.
@@ -127,11 +131,11 @@ This is a Next.js application for daily job reporting using Firebase for authent
 
 ## Features
 
-*   Tabbed Navigation: Switch between Daily Report, Activity Report, R0 Report, and Truck Tracking sections.
+*   Tabbed Navigation: Switch between Daily Report, Activity Report, R0 Report, and Truck Tracking sections based on user permissions.
 *   Forms: Input and display for daily reports, activity reports, R0 reports, and truck tracking.
 *   Dynamic Data Tables: Interactive tables for activity and truck tracking.
 *   Authentication: User login/logout using Firebase Auth.
-*   Admin Panel: Basic admin panel (accessible via `/admin`) allowing admins to create new users and manage roles/permissions.
+*   Admin Panel: Basic admin panel (accessible via `/admin`) allowing admins to create new users, manage roles, disable/enable users, and manage section permissions.
 
 ## Technologies Used
 
@@ -142,7 +146,7 @@ This is a Next.js application for daily job reporting using Firebase for authent
 *   Shadcn/ui
 *   Lucide React (Icons)
 *   Firebase Authentication (Client SDK)
-*   Firebase Admin SDK (Server-side for user creation/management)
+*   Firebase Admin SDK (Server-side for user creation/management/claims)
 *   Genkit (for potential GenAI features)
 *   date-fns
 
@@ -150,10 +154,21 @@ This is a Next.js application for daily job reporting using Firebase for authent
 
 *   **`Firebase: Error (auth/invalid-api-key)` (Client-side):** Your `NEXT_PUBLIC_FIREBASE_API_KEY` in `.env` is likely incorrect or missing. Verify it against your Firebase project settings. Restart the dev server after changes.
 *   **`Firebase: Error (auth/invalid-credential)` (Client-side):** The email or password used for login is incorrect, OR the user does not exist in Firebase Authentication. Ensure you created the user manually first (Step 6).
-*   **`Firebase Admin SDK access failed...` or `Firebase Admin SDK could not be initialized...` (Server log):** Your server-side Admin SDK credentials are not configured correctly (Step 4). Check server logs for detailed errors from `src/lib/firebase/admin.ts`.
-    *   **If using Env Var:** Ensure `FIREBASE_SERVICE_ACCOUNT_KEY` is set in the server environment (or `.env.local`) and contains the **complete, valid JSON** string. Check for typos, truncation, or invalid JSON syntax (e.g., missing quotes). Ensure it's not just an empty string or `{}`.
-    *   **If using Local File:** Ensure `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` exists in the project root, is named correctly, contains valid JSON, and is readable by the server process. Make sure it's in `.gitignore`.
-*   **`Cannot find module 'reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json'` (Server log):** If using the local file method, the server cannot find the file. Ensure it's named correctly and placed in the project root.
-*   **`Error parsing service account JSON` (Server log):** The content of your `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable or `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` file is not valid JSON. Copy it directly from Firebase again.
+*   **`Firebase Admin SDK access failed: CRITICAL - No valid service account credentials found...` (Server error during actions):** This is the most common server-side error. It means the Admin SDK could not initialize because it couldn't find or read the credentials.
+    *   **Check Server Logs:** Look at the *very beginning* of your server console output when you start the app (`npm run dev`). You should see logs from `src/lib/firebase/admin.ts` indicating which credential method it tried (environment variable or local file) and whether it succeeded or failed.
+    *   **Verify Step 4:** Go back to Step 4 and meticulously re-read the instructions for **either** Method 1 (Env Var) **or** Method 2 (Local File). You must choose *one* and configure it correctly.
+    *   **If using Env Var (Method 1):**
+        *   Is `FIREBASE_SERVICE_ACCOUNT_KEY` set in your server environment (e.g., Vercel dashboard, `.env.local`)?
+        *   Does its value contain the **COMPLETE and VALID JSON** string copied *directly* from the downloaded file? (Check for typos, truncation, invalid JSON syntax like missing quotes, using single quotes instead of double quotes inside the JSON). Ensure it's not just an empty string `{}` or missing required fields like `project_id`, `private_key`, `client_email`.
+        *   Is the `FIREBASE_SERVICE_ACCOUNT_KEY` line in your `.env` file commented out or empty (as the environment variable takes precedence)?
+    *   **If using Local File (Method 2 - Default for local dev):**
+        *   Does the file `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` exist **exactly** in the project root directory (same level as `package.json`)?
+        *   Is the filename spelled **exactly** correctly?
+        *   Does the file contain the **COMPLETE and VALID JSON** content provided by Firebase? Open it and check. It must start with `{ "type": "service_account", ... }`. An empty or malformed file will fail.
+        *   Is the `FIREBASE_SERVICE_ACCOUNT_KEY` line in your `.env` file **commented out or empty**? If it has a value (even an invalid one), the code might try to use it instead of the file.
+        *   Is the file readable by the server process (permissions)?
+        *   Is the file listed in your `.gitignore`?
+*   **`Error parsing service account JSON` (Server log):** The content of your `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable or `reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json` file is not valid JSON. Copy it directly from Firebase again. Check for accidental modifications.
 *   **Hydration Errors:** Often caused by rendering differences between server and client. Check for browser-specific APIs (`window`, `localStorage`) used outside `useEffect` or conditional rendering based on non-deterministic values (`Math.random()`, `new Date()`) before hydration. Check for invalid HTML nesting (e.g., whitespace between `<tr>` and `<td>`).
 *   **404 Errors:** Double-check your page routes (`src/app/.../page.tsx`) and component imports. Ensure files exist and are correctly named.
+*   **Permission Denied (Admin Actions):** If you can log in but admin actions (like listing/creating users) fail with permission errors, ensure the user you are logged in as is correctly identified as an admin (either by matching `NEXT_PUBLIC_ADMIN_UID` or having the `admin: true` custom claim, depending on your `useAuth.tsx` logic).
