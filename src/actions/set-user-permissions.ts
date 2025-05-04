@@ -1,7 +1,7 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase/admin';
+import { getAdminAuth } from '@/lib/firebase/admin'; // Import the getter function
 import { z } from 'zod';
 
 // Define input schema for validation
@@ -17,6 +17,8 @@ interface SetUserPermissionsResult {
 }
 
 export async function setUserPermissionsAction(uid: string, allowedSections: string[]): Promise<SetUserPermissionsResult> {
+    const adminAuth = getAdminAuth(); // Get the admin auth instance
+
     // --- Authorization Check ---
     // Ensure the caller is an authenticated admin. This is CRUCIAL.
     // For simplicity, assume page-level protection or verify token here.
@@ -57,7 +59,7 @@ export async function setUserPermissionsAction(uid: string, allowedSections: str
         console.error(`Error setting custom claims for user ${uid}:`, error);
         let errorMessage = "Erreur lors de la modification des permissions de l'utilisateur.";
         if (error.code === 'auth/user-not-found') {
-            errorMessage = `Utilisateur avec UID ${uid} non trouvé.`;
+            errorMessage = `User avec UID ${uid} non trouvé.`;
         }
         return { success: false, message: errorMessage };
     }

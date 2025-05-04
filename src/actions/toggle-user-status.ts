@@ -1,7 +1,7 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase/admin';
+import { getAdminAuth } from '@/lib/firebase/admin'; // Import the getter function
 import { z } from 'zod';
 
 // Define input schema for validation
@@ -17,6 +17,8 @@ interface ToggleUserStatusResult {
 }
 
 export async function toggleUserStatusAction(uid: string, disable: boolean): Promise<ToggleUserStatusResult> {
+    const adminAuth = getAdminAuth(); // Get the admin auth instance
+
     // --- Authorization Check ---
     // Ensure the caller is an authenticated admin.
     // --- End Auth Check ---
@@ -40,13 +42,13 @@ export async function toggleUserStatusAction(uid: string, disable: boolean): Pro
 
         return {
             success: true,
-            message: `Utilisateur ${disable ? 'désactivé' : 'activé'} avec succès.`,
+            message: `User ${disable ? 'désactivé' : 'activé'} avec succès.`,
         };
     } catch (error: any) {
         console.error(`Error updating status for user ${uid}:`, error);
         let errorMessage = "Erreur lors de la modification du statut de l'utilisateur.";
         if (error.code === 'auth/user-not-found') {
-            errorMessage = `Utilisateur avec UID ${uid} non trouvé.`;
+            errorMessage = `User avec UID ${uid} non trouvé.`;
         }
         return { success: false, message: errorMessage };
     }

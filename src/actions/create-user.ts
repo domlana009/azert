@@ -1,7 +1,6 @@
-
 'use server';
 
-import { adminAuth } from '@/lib/firebase/admin';
+import { getAdminAuth } from '@/lib/firebase/admin'; // Import the getter function
 import { z } from 'zod';
 import { headers } from 'next/headers'; // To potentially get user info if needed for auth check
 
@@ -20,6 +19,8 @@ interface CreateUserResult {
 }
 
 export async function createUserAction(formData: FormData): Promise<CreateUserResult> {
+   const adminAuth = getAdminAuth(); // Get the admin auth instance via the getter
+
   // --- Authentication/Authorization Check (Crucial!) ---
   // This is a basic example. Implement robust checks based on your auth setup.
   // Option 1: Check session/token if passed via headers (more complex)
@@ -81,7 +82,7 @@ export async function createUserAction(formData: FormData): Promise<CreateUserRe
     console.log('Successfully created new user:', userRecord.uid);
     return {
       success: true,
-      message: `Utilisateur ${email} créé avec succès.${claimMessage}`,
+      message: `User ${email} créé avec succès.${claimMessage}`,
       userId: userRecord.uid,
     };
   } catch (error: any) {

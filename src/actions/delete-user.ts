@@ -1,7 +1,7 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase/admin';
+import { getAdminAuth } from '@/lib/firebase/admin'; // Import the getter function
 import { z } from 'zod';
 
 // Define input schema for validation
@@ -16,6 +16,8 @@ interface DeleteUserResult {
 }
 
 export async function deleteUserAction(uid: string): Promise<DeleteUserResult> {
+    const adminAuth = getAdminAuth(); // Get the admin auth instance
+
     // --- Authorization Check ---
     // Ensure the caller is an authenticated admin.
     // --- End Auth Check ---
@@ -40,13 +42,13 @@ export async function deleteUserAction(uid: string): Promise<DeleteUserResult> {
 
         return {
             success: true,
-            message: `Utilisateur supprimé avec succès.`,
+            message: `User supprimé avec succès.`,
         };
     } catch (error: any) {
         console.error(`Error deleting user ${uid}:`, error);
         let errorMessage = "Erreur lors de la suppression de l'utilisateur.";
         if (error.code === 'auth/user-not-found') {
-            errorMessage = `Utilisateur avec UID ${uid} non trouvé.`;
+            errorMessage = `User avec UID ${uid} non trouvé.`;
         }
         // Add more specific error handling based on Firebase Admin SDK errors if needed
         return { success: false, message: errorMessage };

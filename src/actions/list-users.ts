@@ -1,7 +1,7 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase/admin';
+import { getAdminAuth } from '@/lib/firebase/admin'; // Import the getter function
 import type { UserRecord } from 'firebase-admin/auth';
 
 // Define return type
@@ -20,6 +20,8 @@ interface ListUsersResult {
 }
 
 export async function listUsersAction(): Promise<ListUsersResult> {
+   const adminAuth = getAdminAuth(); // Get the admin auth instance
+
   // --- Authentication/Authorization Check ---
   // Similar to create-user action, ensure the caller is an admin.
   // This is crucial for security. For now, we assume page-level protection.

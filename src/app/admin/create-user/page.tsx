@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useTransition, useRef } from 'react'; // Added useRef
-import { useAuth } from '@/hooks/useAuth.tsx'; // Correct extension
+import { useAuth } from '@/hooks/useAuth'; // Correct extension
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -114,3 +114,4 @@ export default function CreateUserPage() {
     </div>
   );
 }
+

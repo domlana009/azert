@@ -1,7 +1,7 @@
 
 'use server';
 
-import { adminAuth } from '@/lib/firebase/admin';
+import { getAdminAuth } from '@/lib/firebase/admin'; // Import the getter function
 import { z } from 'zod';
 
 // Define input schema for validation
@@ -17,6 +17,8 @@ interface SetUserRoleResult {
 }
 
 export async function setUserRoleAction(uid: string, isAdmin: boolean): Promise<SetUserRoleResult> {
+    const adminAuth = getAdminAuth(); // Get the admin auth instance
+
     // --- Authorization Check ---
     // Ensure the caller is an authenticated admin. This is CRUCIAL.
     // For simplicity, we assume this check happens in the calling context (e.g., AdminPage)
@@ -53,7 +55,7 @@ export async function setUserRoleAction(uid: string, isAdmin: boolean): Promise<
         let errorMessage = "Erreur lors de la modification du rôle de l'utilisateur.";
         // Add more specific error handling based on Firebase Admin SDK errors if needed
         if (error.code === 'auth/user-not-found') {
-            errorMessage = `Utilisateur avec UID ${uid} non trouvé.`;
+            errorMessage = `User avec UID ${uid} non trouvé.`;
         }
         return { success: false, message: errorMessage };
     }
