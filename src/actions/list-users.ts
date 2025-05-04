@@ -20,12 +20,32 @@ interface ListUsersResult {
 }
 
 export async function listUsersAction(): Promise<ListUsersResult> {
-   const adminAuth = getAdminAuth(); // Get the admin auth instance
+  let adminAuth;
+  try {
+    adminAuth = getAdminAuth(); // Get the admin auth instance
+    // If getAdminAuth doesn't throw, SDK is initialized
+  } catch (error: any) {
+    console.error('Error getting Firebase Admin Auth instance in listUsersAction:', error.message);
+    // Return a specific error indicating initialization failure
+    return {
+      success: false,
+      message: `Erreur critique: Impossible d'initialiser Firebase Admin SDK. Vérifiez les logs du serveur. (${error.message})`,
+    };
+  }
 
   // --- Authentication/Authorization Check ---
-  // Similar to create-user action, ensure the caller is an admin.
-  // This is crucial for security. For now, we assume page-level protection.
-  // In a real app, implement robust server-side auth checks here.
+  // Ensure the caller is an admin. This is crucial for security.
+  // For now, we assume page-level protection. In a real app, implement robust server-side auth checks here.
+  // Example (requires passing user token):
+  // const userToken = headers().get('Authorization')?.split('Bearer ')[1];
+  // if (!userToken) return { success: false, message: "Non autorisé." };
+  // try {
+  //   const decodedToken = await adminAuth.verifyIdToken(userToken);
+  //   if (!decodedToken.admin) { return { success: false, message: "Accès refusé." }; }
+  // } catch (error) {
+  //    console.error("Auth check failed:", error);
+  //    return { success: false, message: "Erreur d'authentification." };
+  // }
   // --- End Auth Check ---
 
   try {
@@ -33,7 +53,10 @@ export async function listUsersAction(): Promise<ListUsersResult> {
 
     const users = listUsersResult.users.map((userRecord: UserRecord) => {
         // Check for the admin custom claim
-        const isAdmin = !!userRecord.customClaims?.admin; // Check if customClaims exist and admin is true
+        const isAdminByClaim = !!userRecord.customClaims?.admin;
+        // Check if UID matches the primary admin UID from env var
+        const isAdminByUID = !!process.env.NEXT_PUBLIC_ADMIN_UID && userRecord.uid === process.env.NEXT_PUBLIC_ADMIN_UID;
+        const isAdmin = isAdminByClaim || isAdminByUID; // User is admin if either is true
 
         // Get allowed sections claim, default to empty array if missing or invalid
         const allowedSections = Array.isArray(userRecord.customClaims?.allowedSections)
@@ -63,6 +86,10 @@ export async function listUsersAction(): Promise<ListUsersResult> {
     };
   } catch (error: any) {
     console.error('Error listing users:', error);
-    return { success: false, message: `Erreur lors de la récupération des utilisateurs: ${error.message}` };
+    // Provide more context in the error message
+    return {
+      success: false,
+      message: `Erreur lors de la récupération des utilisateurs: ${error.message}. (Code: ${error.code || 'N/A'})`,
+    };
   }
 }

@@ -70,17 +70,22 @@ export default function AdminPage() {
 
   // Function to fetch users
   const fetchUsers = React.useCallback(async () => { // Wrap in useCallback
+      console.log("AdminPage: Fetching users...");
       setListLoading(true);
       const result = await listUsersAction();
+      console.log("AdminPage: listUsersAction result:", result); // Log the result
+
       if (result.success && result.users) {
         setUsers(result.users);
+        console.log("AdminPage: Users state updated:", result.users); // Log the updated state
       } else {
         toast({
           title: "Erreur",
-          description: result.message,
+          description: `Impossible de charger les utilisateurs: ${result.message}`, // Show more detailed message
           variant: "destructive",
         });
-        console.error("Failed to fetch users:", result.message);
+        console.error("AdminPage: Failed to fetch users:", result.message);
+        setUsers([]); // Ensure users list is empty on failure
       }
       setListLoading(false);
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,7 +99,7 @@ export default function AdminPage() {
         fetchUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, authLoading, fetchUsers]); // Include fetchUsers in dependency array
+  }, [currentUser, authLoading]); // Removed fetchUsers from dependency array as it's stable due to useCallback
 
 
   // --- Action Handlers ---
@@ -162,12 +167,15 @@ export default function AdminPage() {
     return <div className="flex justify-center items-center min-h-screen">Chargement ou redirection...</div>;
   }
 
+  // Debug log for render
+  console.log("AdminPage: Rendering with users:", users, "Loading:", listLoading);
+
   return (
     <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
              <h1 className="text-3xl font-bold">Panneau d'administration</h1>
             <Link href="/admin/create-user" passHref>
-                <Button><Plus className="mr-2 h-4 w-4"/>Créer Utilisateur</Button>
+                <Button><Plus className="mr-2 h-4 w-4"/>Créer User</Button>
             </Link>
         </div>
 
@@ -206,7 +214,7 @@ export default function AdminPage() {
                                         <TableCell className="font-medium">{usr.email || 'N/A'}</TableCell>
                                         <TableCell>
                                             {/* Display Admin badge if user is admin, User otherwise */}
-                                            {usr.isAdmin || (process.env.NEXT_PUBLIC_ADMIN_UID && usr.uid === process.env.NEXT_PUBLIC_ADMIN_UID) ? (
+                                            {usr.isAdmin ? (
                                                 <Badge variant="secondary"><ShieldCheck className="mr-1 h-3 w-3" /> Admin</Badge>
                                             ) : (
                                                 <Badge variant="outline">User</Badge>
@@ -221,7 +229,7 @@ export default function AdminPage() {
                                         </TableCell>
                                         <TableCell> {/* Permissions Cell */}
                                             {/* Show number of allowed sections or 'All' for admin */}
-                                             {usr.isAdmin || (process.env.NEXT_PUBLIC_ADMIN_UID && usr.uid === process.env.NEXT_PUBLIC_ADMIN_UID) ? (
+                                             {usr.isAdmin ? (
                                                  <Badge variant="outline">Toutes</Badge>
                                             ) : (
                                                  <Badge variant="outline" className="cursor-pointer hover:bg-muted" onClick={() => openPermissionsDialog(usr)}>
@@ -339,7 +347,7 @@ export default function AdminPage() {
                                                                     </AlertDialogHeader>
                                                                     <AlertDialogFooter>
                                                                         <AlertDialogCancel disabled={isPending}>Annuler</AlertDialogCancel>
-                                                                        {/* Replace AlertDialogAction with Button for destructive variant */}
+                                                                        {/* Use Button directly for destructive variant */}
                                                                         <Button
                                                                             variant="destructive"
                                                                             onClick={() => handleToggleStatus(usr.uid, true)}
@@ -368,7 +376,7 @@ export default function AdminPage() {
                                                                 </AlertDialogHeader>
                                                                 <AlertDialogFooter>
                                                                     <AlertDialogCancel disabled={isPending}>Annuler</AlertDialogCancel>
-                                                                    {/* Replace AlertDialogAction with Button for destructive variant */}
+                                                                    {/* Use Button directly for destructive variant */}
                                                                     <Button
                                                                         variant="destructive"
                                                                         onClick={() => handleDeleteUser(usr.uid)}
@@ -388,7 +396,7 @@ export default function AdminPage() {
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={8} className="text-center text-muted-foreground"> {/* Adjusted colSpan */}
-                                            Aucun utilisateur trouvé.
+                                            Aucun utilisateur trouvé ou erreur lors du chargement.
                                         </TableCell>
                                     </TableRow>
                                 )}
