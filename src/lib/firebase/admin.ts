@@ -10,7 +10,13 @@ let initializedVia: string | null = null;
 
 function initializeFirebaseAdmin() {
   if (isInitialized) {
-    console.log(`Firebase Admin SDK: Already attempted initialization (via ${initializedVia || 'unknown'}). Status: ${initializationError ? 'Failed' : 'Success'}`);
+    // Avoid re-logging if already initialized successfully or with the same error
+    if (adminAuthInstance) {
+      console.log(`Firebase Admin SDK: Already initialized successfully via ${initializedVia || 'unknown'}.`);
+    } else if (initializationError) {
+      // Don't repeatedly log the same initialization error.
+      // A different mechanism should handle persistent errors if needed.
+    }
     return;
   }
   isInitialized = true; // Mark as attempted
@@ -21,67 +27,90 @@ function initializeFirebaseAdmin() {
 
   // Method 1: Environment Variable (Recommended for deployment)
   console.log("Firebase Admin SDK: Checking environment variable FIREBASE_SERVICE_ACCOUNT_KEY...");
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY && process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim() !== '') {
-    serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    initializedVia = 'environment variable';
-    console.log("Firebase Admin SDK: Found FIREBASE_SERVICE_ACCOUNT_KEY environment variable.");
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY && process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim() !== '' && process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim() !== '{}') {
+      try {
+        // Basic JSON validation for environment variable
+        JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        initializedVia = 'environment variable';
+        console.log("Firebase Admin SDK: Found valid JSON in FIREBASE_SERVICE_ACCOUNT_KEY environment variable.");
+      } catch (e: any) {
+          initializationError = new Error(`CRITICAL - Failed to parse service account JSON from environment variable. Ensure it's valid JSON. Error: ${e.message}`);
+          console.error(`Firebase Admin SDK: ${initializationError.message}`);
+          // Log a snippet, carefully excluding sensitive parts if possible
+          // console.error("JSON snippet (start):", (process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '').substring(0, 50) + "...");
+          return; // Stop initialization if env var is invalid JSON
+      }
   } else {
-    console.log("Firebase Admin SDK: FIREBASE_SERVICE_ACCOUNT_KEY environment variable not found or is empty.");
+      console.log("Firebase Admin SDK: FIREBASE_SERVICE_ACCOUNT_KEY environment variable not found, empty, or just '{}'.");
   }
+
 
   // Method 2: Local File (Easier for local dev, ensure it's gitignored)
   if (!serviceAccountJson) {
-    const serviceAccountPath = path.resolve('./serviceAccountKey.json'); // Use path.resolve for absolute path
+    // Use the user-specified filename
+    const serviceAccountFilename = 'reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json';
+    const serviceAccountPath = path.resolve(`./${serviceAccountFilename}`); // Use path.resolve for absolute path
     console.log(`Firebase Admin SDK: Checking for local file at ${serviceAccountPath}...`);
     try {
       if (fs.existsSync(serviceAccountPath)) {
         serviceAccountJson = fs.readFileSync(serviceAccountPath, 'utf8');
         if (serviceAccountJson.trim() === '') {
-          console.warn("Firebase Admin SDK: Local serviceAccountKey.json file exists but is empty.");
+          console.warn(`Firebase Admin SDK: Local ${serviceAccountFilename} file exists but is empty.`);
           serviceAccountJson = null; // Treat empty file as not found
         } else {
-          initializedVia = 'local file (serviceAccountKey.json)';
-          console.log("Firebase Admin SDK: Found and read local serviceAccountKey.json file.");
+          // Basic JSON validation for local file
+          JSON.parse(serviceAccountJson);
+          initializedVia = `local file (${serviceAccountFilename})`;
+          console.log(`Firebase Admin SDK: Found and read valid JSON from local ${serviceAccountFilename} file.`);
         }
       } else {
-        console.log("Firebase Admin SDK: Local serviceAccountKey.json file not found.");
+        console.log(`Firebase Admin SDK: Local ${serviceAccountFilename} file not found.`);
       }
     } catch (error: any) {
-      console.error(`Firebase Admin SDK: Error reading local serviceAccountKey.json: ${error.message}`);
-      serviceAccountJson = null; // Ensure it's null if read failed
+       if (error instanceof SyntaxError) {
+           initializationError = new Error(`CRITICAL - Failed to parse service account JSON from ${serviceAccountFilename}. Ensure it's valid JSON. Error: ${error.message}`);
+       } else {
+           initializationError = new Error(`CRITICAL - Error reading local ${serviceAccountFilename}: ${error.message}`);
+       }
+       console.error(`Firebase Admin SDK: ${initializationError.message}`);
+       serviceAccountJson = null; // Ensure it's null if read/parse failed
+       return; // Stop initialization if local file is invalid
     }
   }
-
-  // --- Initialize Firebase Admin SDK ---
 
   // Check if the SDK is already initialized (might happen in some hot-reload scenarios)
   if (admin.apps.length > 0) {
     console.log(`Firebase Admin SDK: Already initialized (detected existing admin app).`);
     adminAuthInstance = admin.auth(); // Use existing auth instance
     initializedVia = initializedVia || 'existing app detection'; // Update how it was initialized if needed
+    initializationError = null; // Clear any potential errors from credential loading if an app already exists
     return;
   }
 
+
+  // --- Initialize Firebase Admin SDK ---
+
   // Check if credentials were found
   if (!serviceAccountJson) {
-    initializationError = new Error("CRITICAL - No service account credentials found. Cannot initialize. Check environment variable 'FIREBASE_SERVICE_ACCOUNT_KEY' or the presence and content of 'serviceAccountKey.json' in the project root.");
+    initializationError = new Error("CRITICAL - No valid service account credentials found. Cannot initialize. Check environment variable 'FIREBASE_SERVICE_ACCOUNT_KEY' or the presence and content of 'reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json' in the project root.");
     console.error(`Firebase Admin SDK: ${initializationError.message}`);
     return;
   }
 
   let serviceAccount;
   try {
+    // Re-parsing should be safe as we validated above, but keep for robustness
     serviceAccount = JSON.parse(serviceAccountJson);
-    // Basic validation of parsed content
+    // More robust validation
     if (!serviceAccount || typeof serviceAccount !== 'object' || !serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-        throw new Error(`Parsed service account JSON from ${initializedVia} is invalid or missing required fields (project_id, private_key, client_email). Please verify the content of the credentials.`);
+        throw new Error(`Parsed service account JSON from ${initializedVia} is invalid or missing required fields (project_id, private_key, client_email). Please verify the content.`);
     }
-    console.log(`Firebase Admin SDK: Successfully parsed service account JSON from ${initializedVia}.`);
+    // console.log(`Firebase Admin SDK: Successfully re-parsed service account JSON from ${initializedVia}.`); // Redundant log
   } catch (error: any) {
-    initializationError = new Error(`CRITICAL - Failed to parse service account JSON from ${initializedVia || 'unknown source'}. Ensure it's valid JSON. Error: ${error.message}`);
+    // This catch block might be redundant if parsing errors are caught earlier, but kept for safety
+    initializationError = new Error(`CRITICAL - Failed to parse service account JSON from ${initializedVia || 'unknown source'} during final check. Ensure it's valid JSON. Error: ${error.message}`);
     console.error(`Firebase Admin SDK: ${initializationError.message}`);
-    // Log a snippet of the JSON (be careful not to log the private key)
-    // console.error("JSON snippet (start):", serviceAccountJson.substring(0, 100) + "...");
     return;
   }
 
@@ -94,21 +123,25 @@ function initializeFirebaseAdmin() {
     });
     console.log(`Firebase Admin SDK: Initialization successful for project ${serviceAccount.project_id}.`);
     adminAuthInstance = admin.auth(); // Assign instance on success
+    initializationError = null; // Clear any previous errors on success
   } catch (error: any) {
-    initializationError = new Error(`CRITICAL - Error during admin.initializeApp() via ${initializedVia || 'unknown source'}. Error: ${error.message}`);
-    console.error(`Firebase Admin SDK: ${initializationError.message}`);
-    // Log the structure of the service account (excluding private key) for debugging
-    console.error("Service Account details used (check project_id, client_email):", { projectId: serviceAccount.project_id, clientEmail: serviceAccount.client_email });
-    // Check for common specific errors
+    // Handle specific initialization errors
     if (error.code === 'app/duplicate-app') {
-      console.warn("Firebase Admin SDK: Attempted to initialize an app that already exists. This might indicate an issue in the initialization logic flow.");
-      // If duplicate app error occurs, try returning the existing default app's auth service
-      if (admin.apps.length > 0 && admin.apps[0]) {
-        console.log("Firebase Admin SDK: Re-assigning auth service from existing default app.");
-        adminAuthInstance = admin.apps[0].auth();
-        initializationError = null; // Clear the error as we recovered
-        return;
-      }
+       console.warn("Firebase Admin SDK: Attempted to initialize an app that already exists ('app/duplicate-app'). Using existing app's auth service.");
+       if (admin.apps.length > 0 && admin.apps[0]) {
+           adminAuthInstance = admin.apps[0].auth();
+           initializationError = null; // Clear the error as we recovered
+           return;
+       } else {
+            // This case is unlikely if duplicate-app error occurred, but handle defensively
+             initializationError = new Error(`CRITICAL - Caught 'app/duplicate-app' error but no existing app found. Initialization failed. Error: ${error.message}`);
+             console.error(`Firebase Admin SDK: ${initializationError.message}`);
+       }
+    } else {
+       initializationError = new Error(`CRITICAL - Error during admin.initializeApp() via ${initializedVia || 'unknown source'}. Error: ${error.message}`);
+       console.error(`Firebase Admin SDK: ${initializationError.message}`);
+       // Log the structure of the service account (excluding private key) for debugging
+       console.error("Service Account details used (check project_id, client_email):", { projectId: serviceAccount.project_id, clientEmail: serviceAccount.client_email });
     }
     // Ensure instance is null on failure
     adminAuthInstance = null;
@@ -126,7 +159,7 @@ initializeFirebaseAdmin();
 export const getAdminAuth = (): admin.auth.Auth => {
     if (initializationError) {
         // Provide a more detailed error message upon access if initialization failed
-         throw new Error(`Firebase Admin SDK access failed: ${initializationError.message}. Check server startup logs for details. Common causes are missing, empty, or invalid service account credentials (env var 'FIREBASE_SERVICE_ACCOUNT_KEY' or local file 'serviceAccountKey.json'). Please verify your setup according to the README.md.`);
+         throw new Error(`Firebase Admin SDK access failed: ${initializationError.message}. Check server startup logs for details. Common causes are missing, empty, or invalid service account credentials (env var 'FIREBASE_SERVICE_ACCOUNT_KEY' or local file 'reportzen-mixd3-firebase-adminsdk-fbsvc-f006f10e8d.json'). Please verify your setup according to the README.md.`);
     }
     if (!adminAuthInstance) {
         // This case should theoretically not be reached if initialization logic is sound, but added for safety
